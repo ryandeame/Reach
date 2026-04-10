@@ -1,50 +1,98 @@
-# Welcome to your Expo app 👋
+# Reach
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Reach is a simple Expo + Supabase CRM app for logging client outreach, managing contacts and companies, and tracking daily outreach momentum.
 
-## Get started
+## What It Does
 
-1. Install dependencies
+- Log outreach activity against an existing contact
+- Create people and companies inline from the main logging flow
+- Browse the app through an animated drawer with:
+  - `Outreach Log`
+  - `Initiative Dashboard`
+- Track daily momentum with a signal-style card based on unique contacts reached that day
+
+## Stack
+
+- Expo
+- React Native
+- Expo Router
+- Supabase
+- TypeScript
+
+## Local Setup
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Add your local env file:
+
+   Create `.env.local` and include:
 
    ```bash
-   npx expo start
+   EXPO_PUBLIC_SUPABASE_URL=your-project-url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    ```
 
-In the output, you'll find options to open the app in a
+3. Run the SQL in Supabase:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   - `sql/001_create_reach_schema.sql`
+   - `sql/002_daily_unique_outreach_signal.sql`
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+4. Start the app:
 
-## Get a fresh project
+   ```bash
+   npx expo start -c
+   ```
 
-When you're ready, run:
+## Database Notes
 
-```bash
-npm run reset-project
+- `001_create_reach_schema.sql` creates:
+  - `reach_companies`
+  - `reach_people`
+  - `reach_outreach_log`
+- RLS is enabled on all three tables
+- Temporary open policies are included for `anon` and `authenticated` while the app is being prototyped
+- `002_daily_unique_outreach_signal.sql` adds an RPC function used by the dashboard to count distinct contacts reached within the device's local day
+
+## Project Structure
+
+```text
+app/
+  _layout.tsx
+  index.tsx
+  initiative-dashboard.tsx
+components/
+hooks/
+lib/
+sql/
+types/
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Current Product Shape
 
-## Learn more
+- Main screen focused on fast outreach logging
+- Add-person modal with inline company creation flow
+- Initiative dashboard with:
+  - people count
+  - company count
+  - daily outreach signal card
 
-To learn more about developing your project with Expo, look at the following resources:
+## Scripts
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm start
+npm run android
+npm run ios
+npm run web
+npm run lint
+```
 
-## Join the community
+## Next Good Steps
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Replace open RLS policies with authenticated user policies
+- Add initiative-level entities if outreach should be grouped by campaign or project
+- Add edit and delete flows for people, companies, and logs
+- Add filtering and history views for outreach records
