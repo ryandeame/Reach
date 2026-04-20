@@ -27,6 +27,8 @@ export function usePeople() {
           `
             id,
             full_name,
+            title,
+            location,
             email,
             phone,
             linkedin,

@@ -28,12 +28,14 @@ export function useCreatePerson() {
         .from('reach_people')
         .insert({
           full_name: fullName,
+          title: toNullableString(input.title),
+          location: toNullableString(input.location),
           email: toNullableString(input.email),
           phone: toNullableString(input.phone),
           linkedin: toNullableString(input.linkedin),
           company_id: input.companyId || null,
         })
-        .select('id, full_name, email, phone, linkedin, company_id')
+        .select('id, full_name, title, location, email, phone, linkedin, company_id')
         .single();
 
       if (queryError) {

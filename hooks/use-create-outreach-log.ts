@@ -3,6 +3,11 @@ import { useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { CreateOutreachLogInput, ReachOutreachLog } from '@/types/reach';
 
+function toNullableString(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function useCreateOutreachLog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,10 +31,12 @@ export function useCreateOutreachLog() {
       const payload: {
         person_id: string;
         comm_type: string;
+        message: string | null;
         timestamp?: string;
       } = {
         person_id: input.personId,
         comm_type: commType,
+        message: toNullableString(input.message),
       };
 
       if (input.timestamp) {
@@ -39,7 +46,7 @@ export function useCreateOutreachLog() {
       const { data, error: queryError } = await client
         .from('reach_outreach_log')
         .insert(payload)
-        .select('id, person_id, comm_type, timestamp')
+        .select('id, person_id, comm_type, message, timestamp')
         .single();
 
       if (queryError) {

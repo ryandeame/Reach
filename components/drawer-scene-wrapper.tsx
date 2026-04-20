@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useDrawerProgress } from '@react-navigation/drawer';
 import Animated, {
   Extrapolation,
@@ -12,6 +12,14 @@ type DrawerSceneWrapperProps = {
 };
 
 export function DrawerSceneWrapper({ children }: DrawerSceneWrapperProps) {
+  if (Platform.OS === 'web') {
+    return <View style={styles.container}>{children}</View>;
+  }
+
+  return <NativeDrawerSceneWrapper>{children}</NativeDrawerSceneWrapper>;
+}
+
+function NativeDrawerSceneWrapper({ children }: DrawerSceneWrapperProps) {
   const progress = useDrawerProgress();
 
   const animatedStyle = useAnimatedStyle(() => {

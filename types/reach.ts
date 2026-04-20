@@ -9,6 +9,8 @@ export type ReachCompany = {
 export type ReachPerson = {
   id: string;
   full_name: string;
+  title: string | null;
+  location: string | null;
   email: string | null;
   phone: string | null;
   linkedin: string | null;
@@ -20,6 +22,7 @@ export type ReachOutreachLog = {
   id: string;
   person_id: string;
   comm_type: string;
+  message: string | null;
   timestamp: string;
 };
 
@@ -32,6 +35,8 @@ export type CreateCompanyInput = {
 
 export type CreatePersonInput = {
   fullName: string;
+  title: string;
+  location: string;
   email: string;
   phone: string;
   linkedin: string;
@@ -41,5 +46,6 @@ export type CreatePersonInput = {
 export type CreateOutreachLogInput = {
   personId: string;
   commType: string;
+  message: string;
   timestamp?: string;
 };

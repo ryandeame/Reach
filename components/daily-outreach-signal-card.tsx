@@ -11,7 +11,7 @@ function getFilledBarCount(count: number) {
     return 0;
   }
 
-  return Math.min(BAR_HEIGHTS.length, Math.ceil(count / 2));
+  return Math.min(BAR_HEIGHTS.length, Math.floor(count / 2));
 }
 
 function formatCurrentMoment(date: Date) {
@@ -42,7 +42,7 @@ export function DailyOutreachSignalCard() {
     ? error
     : count >= DAILY_GOAL
       ? 'Signal is fully charged for today.'
-      : 'Each 2 unique contacts lights up one more bar.';
+      : 'Every full 2 unique contacts lights up one more bar.';
 
   return (
     <View style={styles.card}>

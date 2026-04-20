@@ -26,6 +26,8 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 
 const initialPersonForm = {
   fullName: '',
+  title: '',
+  location: '',
   email: '',
   phone: '',
   linkedin: '',
@@ -39,9 +41,19 @@ const initialCompanyForm = {
   website: '',
 };
 
+const communicationTypeOptions = [
+  { label: 'Email', value: 'Email' },
+  { label: 'LinkedIn DM', value: 'LinkedIn DM' },
+  { label: 'Facebook Message', value: 'Facebook Message' },
+  { label: 'Twitter/X DM', value: 'Twitter/X DM' },
+  { label: 'Discord DM', value: 'Discord DM' },
+  { label: 'Reddit Chat', value: 'Reddit Chat' },
+];
+
 export default function OutreachLoggerScreen() {
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [commType, setCommType] = useState('');
+  const [message, setMessage] = useState('');
   const [isPersonModalVisible, setIsPersonModalVisible] = useState(false);
   const [isCompanyStepVisible, setIsCompanyStepVisible] = useState(false);
   const [personForm, setPersonForm] = useState(initialPersonForm);
@@ -113,11 +125,14 @@ export default function OutreachLoggerScreen() {
       await createOutreachLog({
         personId: selectedPersonId,
         commType,
+        message,
       });
 
-      const personName = people.find((person) => person.id === selectedPersonId)?.full_name ?? 'Contact';
+      const personName =
+        people.find((person) => person.id === selectedPersonId)?.full_name ?? 'Contact';
       const loggedType = commType.trim();
       setCommType('');
+      setMessage('');
       Alert.alert('Outreach logged', `Saved a ${loggedType} entry for ${personName}.`);
     } catch (error) {
       Alert.alert('Unable to save log', error instanceof Error ? error.message : 'Try again.');
@@ -228,14 +243,27 @@ export default function OutreachLoggerScreen() {
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Communication type</Text>
+                <SelectField
+                  label="Communication type"
+                  options={communicationTypeOptions}
+                  placeholder="Choose a communication type"
+                  selectedValue={commType}
+                  onValueChange={setCommType}
+                  disabled={!isSupabaseConfigured}
+                  emptyMessage="Add communication types to this list to choose one here."
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Message sent</Text>
                 <TextInput
-                  autoCapitalize="words"
-                  onChangeText={setCommType}
-                  placeholder="Email, LinkedIn DM, call..."
+                  multiline
+                  onChangeText={setMessage}
+                  placeholder="Paste or write the message you sent..."
                   placeholderTextColor="#7B8794"
-                  style={styles.input}
-                  value={commType}
+                  style={[styles.input, styles.textArea]}
+                  textAlignVertical="top"
+                  value={message}
                 />
               </View>
 
@@ -310,6 +338,34 @@ export default function OutreachLoggerScreen() {
                             placeholderTextColor="#7B8794"
                             style={styles.input}
                             value={personForm.fullName}
+                          />
+                        </View>
+
+                        <View style={styles.field}>
+                          <Text style={styles.label}>Title</Text>
+                          <TextInput
+                            autoCapitalize="words"
+                            onChangeText={(value) =>
+                              setPersonForm((current) => ({ ...current, title: value }))
+                            }
+                            placeholder="Head of Growth"
+                            placeholderTextColor="#7B8794"
+                            style={styles.input}
+                            value={personForm.title}
+                          />
+                        </View>
+
+                        <View style={styles.field}>
+                          <Text style={styles.label}>Location</Text>
+                          <TextInput
+                            autoCapitalize="words"
+                            onChangeText={(value) =>
+                              setPersonForm((current) => ({ ...current, location: value }))
+                            }
+                            placeholder="Bogota, Colombia"
+                            placeholderTextColor="#7B8794"
+                            style={styles.input}
+                            value={personForm.location}
                           />
                         </View>
 
@@ -623,6 +679,10 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  textArea: {
+    minHeight: 136,
+    paddingTop: 16,
   },
   primaryAction: {
     alignItems: 'center',
