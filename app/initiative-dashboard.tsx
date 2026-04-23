@@ -90,13 +90,10 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     backgroundColor: '#FCFCF9',
+    boxShadow: '0px 12px 22px rgba(16, 42, 67, 0.08)',
     borderRadius: 28,
     gap: 8,
     padding: 22,
-    shadowColor: '#102A43',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
   },
   metricLabel: {
     color: '#486581',

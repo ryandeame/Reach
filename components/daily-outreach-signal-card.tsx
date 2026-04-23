@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useDailyUniqueOutreachCount } from '@/hooks/use-daily-unique-outreach-count';
@@ -27,6 +28,12 @@ function formatCurrentMoment(date: Date) {
 export function DailyOutreachSignalCard() {
   const [now, setNow] = useState(() => new Date());
   const { count, isLoading, error } = useDailyUniqueOutreachCount(now);
+
+  useFocusEffect(
+    useCallback(() => {
+      setNow(new Date());
+    }, [])
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -85,13 +92,10 @@ export function DailyOutreachSignalCard() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FCFCF9',
+    boxShadow: '0px 12px 22px rgba(16, 42, 67, 0.08)',
     borderRadius: 28,
     gap: 18,
     padding: 22,
-    shadowColor: '#102A43',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
   },
   header: {
     alignItems: 'flex-start',

@@ -18,6 +18,7 @@ export function useCreateOutreachLog() {
 
     try {
       const commType = input.commType.trim();
+      const message = input.message.trim();
 
       if (!input.personId) {
         throw new Error('Select a person before saving a log.');
@@ -25,6 +26,10 @@ export function useCreateOutreachLog() {
 
       if (!commType) {
         throw new Error('Communication type is required.');
+      }
+
+      if (!message) {
+        throw new Error('Message is required.');
       }
 
       const client = getSupabaseClient();
@@ -36,7 +41,7 @@ export function useCreateOutreachLog() {
       } = {
         person_id: input.personId,
         comm_type: commType,
-        message: toNullableString(input.message),
+        message: toNullableString(message),
       };
 
       if (input.timestamp) {

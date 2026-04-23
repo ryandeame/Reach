@@ -42,7 +42,7 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
    - `sql/002_daily_unique_outreach_signal.sql`
    - `sql/003_add_person_title_and_outreach_message.sql`
    - `sql/004_add_person_location.sql`
-
+****
 4. Start the app:
 
    ```bash
