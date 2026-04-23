@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { DrawerActions, useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -17,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DrawerSceneWrapper } from '@/components/drawer-scene-wrapper';
+import { useReachTheme } from '@/components/reach-theme-provider';
 import { useCompanies } from '@/hooks/use-companies';
 import { useCreateCompany } from '@/hooks/use-create-company';
 import { useCreatePerson } from '@/hooks/use-create-person';
@@ -69,15 +71,12 @@ const headerEnhancement =
       } as const)
     : null;
 
-const backgroundEnhancement =
-  Platform.OS === 'web'
-    ? ({
-        backgroundImage: 'linear-gradient(135deg, #9CA3AF 0%, #121212 42%, #000000 100%)',
-      } as const)
-    : null;
-
 export function NewNoirScreen() {
   const navigation = useNavigation();
+  const { theme } = useReachTheme();
+  const workflow = theme.workflow;
+  const themedGlassEnhancement = workflow.glass ? glassEnhancement : null;
+  const themedHeaderEnhancement = workflow.glass ? headerEnhancement : null;
   const [now, setNow] = useState(() => new Date());
   const [selectedPersonLabel, setSelectedPersonLabel] = useState('');
   const [peopleSearchTerm, setPeopleSearchTerm] = useState('');
@@ -142,7 +141,36 @@ export function NewNoirScreen() {
       ? companyOptions.find((company) => company.id === personForm.companyId)?.name ?? 'Select company'
       : 'Select company';
 
-  const progressWidth = `${Math.min(1, count / DAILY_GOAL) * 100}%`;
+  const progressWidth = `${Math.min(1, count / DAILY_GOAL) * 100}%` as `${number}%`;
+  const themedInputStyle = {
+    backgroundColor: workflow.fieldBackground,
+    borderColor: workflow.fieldBorder,
+    borderRadius: workflow.radius,
+    color: workflow.inputText,
+  };
+  const themedFieldStyle = {
+    backgroundColor: workflow.fieldBackground,
+    borderColor: workflow.fieldBorder,
+    borderRadius: workflow.radius,
+    boxShadow: workflow.panelShadow,
+  };
+  const themedPrimaryButtonStyle = {
+    backgroundColor: workflow.primaryBackground,
+    borderColor: workflow.primaryBorder,
+    borderRadius: workflow.radius,
+    boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
+  };
+  const themedModalStyle = {
+    backgroundColor: workflow.modalBackground,
+    borderColor: workflow.modalBorder,
+    borderRadius: workflow.radius,
+  };
+  const themedMenuStyle = {
+    backgroundColor: workflow.menuBackground,
+    borderColor: workflow.menuBorder,
+    borderRadius: workflow.radius,
+    boxShadow: workflow.panelShadow,
+  };
 
   const handleSelectPerson = (personId: string, label: string) => {
     setSelectedPersonId(personId);
@@ -289,27 +317,52 @@ export function NewNoirScreen() {
 
   return (
     <DrawerSceneWrapper>
-      <SafeAreaView style={[styles.safeArea, backgroundEnhancement as any]} edges={['top']}>
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          { backgroundColor: workflow.background },
+        ]}
+        edges={['top']}>
         <View style={styles.root}>
+          {workflow.backgroundGradient ? (
+            <LinearGradient
+              pointerEvents="none"
+              colors={workflow.backgroundGradient.colors}
+              locations={workflow.backgroundGradient.locations}
+              start={workflow.backgroundGradient.start}
+              end={workflow.backgroundGradient.end}
+              style={styles.workflowGradient}
+            />
+          ) : null}
+
           {isPeopleOpen ? (
             <Pressable onPress={closePeoplePicker} style={styles.dismissLayer} />
           ) : null}
 
-          <View style={[styles.header, headerEnhancement as any]}>
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: workflow.headerBackground,
+                borderBottomColor: workflow.headerBorder,
+                boxShadow: workflow.headerShadow,
+              },
+              themedHeaderEnhancement as any,
+            ]}>
             <Pressable
               onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
               style={styles.headerLeft}>
               <MaterialIcons
                 name="terminal"
                 size={20}
-                color="#A30029"
-                style={styles.headerTerminal}
+                color={workflow.accent}
+                style={[styles.headerTerminal, { textShadowColor: workflow.accentSoft }]}
               />
-              <Text style={styles.headerTitle}>OUTREACH_LOG</Text>
+              <Text style={[styles.headerTitle, { color: workflow.text }]}>OUTREACH_LOG</Text>
             </Pressable>
 
             <Pressable style={styles.headerRight}>
-              <MaterialIcons name="settings-input-component" size={22} color="#E57373" />
+              <MaterialIcons name="settings-input-component" size={22} color={workflow.accent} />
             </Pressable>
           </View>
 
@@ -317,34 +370,67 @@ export function NewNoirScreen() {
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <View style={[styles.heroCard, glassEnhancement as any]}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: workflow.panelBackground,
+                  borderLeftColor: workflow.accent,
+                  borderRadius: workflow.radius,
+                  boxShadow: workflow.panelShadow,
+                },
+                themedGlassEnhancement as any,
+              ]}>
               <View style={styles.heroLabelWrap}>
-                <Text style={styles.heroLabel}>Target_Metrics</Text>
+                <Text style={[styles.heroLabel, { color: workflow.accent }]}>Target_Metrics</Text>
               </View>
-              <Text style={styles.heroValue}>{isLoading ? '... / 10' : `${count} / 10`}</Text>
-              <Text style={styles.heroCaption}>Contacts Logged Today</Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: progressWidth }]} />
+              <Text style={[styles.heroValue, { color: workflow.text }]}>
+                {isLoading ? '... / 10' : `${count} / 10`}
+              </Text>
+              <Text style={[styles.heroCaption, { color: workflow.accent }]}>
+                Contacts Logged Today
+              </Text>
+              <View style={[styles.progressTrack, { backgroundColor: workflow.divider }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: workflow.accent,
+                      boxShadow: `0px 0px 15px ${workflow.accentSoft}`,
+                      width: progressWidth,
+                    },
+                  ]}
+                />
               </View>
             </View>
 
             <View style={styles.formStack}>
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Target Entity</Text>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Target Entity</Text>
                 <View style={styles.dropdownWrap}>
                   <View style={styles.targetRow}>
                     <Pressable
                       onPress={openPeoplePicker}
-                      style={[styles.searchField, styles.targetField, glassEnhancement as any]}>
-                      <MaterialIcons name="search" size={18} color="rgba(229,115,115,0.7)" />
+                      style={[
+                        styles.searchField,
+                        styles.targetField,
+                        {
+                          backgroundColor: workflow.fieldBackground,
+                          borderColor: workflow.fieldBorder,
+                          borderRadius: workflow.radius,
+                          boxShadow: workflow.panelShadow,
+                        },
+                        themedGlassEnhancement as any,
+                      ]}>
+                      <MaterialIcons name="search" size={18} color={workflow.accentMuted} />
                       <Text
                         style={[
                           styles.searchInputDisplay,
-                          !selectedPersonLabel && styles.searchPlaceholder,
+                          { color: selectedPersonLabel ? workflow.inputText : workflow.placeholder },
                         ]}>
                         {selectedPersonLabel || 'Search contacts'}
                       </Text>
-                      <MaterialIcons name="arrow-drop-down" size={22} color="#E57373" />
+                      <MaterialIcons name="arrow-drop-down" size={22} color={workflow.accent} />
                     </Pressable>
 
                     <Pressable
@@ -352,26 +438,46 @@ export function NewNoirScreen() {
                         setIsProtocolOpen(false);
                         setIsAddPersonVisible(true);
                       }}
-                      style={styles.addPersonButton}>
-                      <MaterialIcons name="person-add-alt-1" size={16} color="#FFFFFF" />
-                      <Text style={styles.addPersonButtonText}>Add person</Text>
+                      style={[
+                        styles.addPersonButton,
+                        {
+                          backgroundColor: workflow.primaryBackground,
+                          borderColor: workflow.primaryBorder,
+                          borderRadius: workflow.radius,
+                        },
+                      ]}>
+                      <MaterialIcons name="person-add-alt-1" size={16} color={workflow.primaryText} />
+                      <Text style={[styles.addPersonButtonText, { color: workflow.primaryText }]}>
+                        Add person
+                      </Text>
                     </Pressable>
                   </View>
                 </View>
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Communication Vector</Text>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>
+                  Communication Vector
+                </Text>
                 <View style={styles.dropdownWrap}>
                   <Pressable
                     onPress={() => setIsProtocolOpen(true)}
-                    style={[styles.vectorField, glassEnhancement as any]}>
+                    style={[
+                      styles.vectorField,
+                      {
+                        backgroundColor: workflow.fieldBackground,
+                        borderColor: workflow.fieldBorder,
+                        borderRadius: workflow.radius,
+                        boxShadow: workflow.panelShadow,
+                      },
+                      themedGlassEnhancement as any,
+                    ]}>
                     <View style={styles.vectorFieldCopy}>
-                      <MaterialIcons name="hub" size={18} color="#E57373" />
+                      <MaterialIcons name="hub" size={18} color={workflow.accent} />
                       <Text
                         style={[
                           styles.vectorFieldText,
-                          !selectedProtocol && styles.searchPlaceholder,
+                          { color: selectedProtocol ? workflow.inputText : workflow.placeholder },
                         ]}>
                         {selectedProtocol ? selectedProtocolLabel : 'Select type'}
                       </Text>
@@ -379,7 +485,7 @@ export function NewNoirScreen() {
                     <MaterialIcons
                       name="chevron-right"
                       size={22}
-                      color="#E57373"
+                      color={workflow.accent}
                       style={styles.vectorChevronOpen}
                     />
                   </Pressable>
@@ -388,17 +494,34 @@ export function NewNoirScreen() {
 
               <View style={styles.section}>
                 <View style={styles.telemetryAccent}>
-                  <View style={styles.telemetryLineLong} />
-                  <View style={styles.telemetryLineShort} />
+                  <View
+                    style={[
+                      styles.telemetryLineLong,
+                      { backgroundColor: workflow.accent, boxShadow: `0px 0px 8px ${workflow.accentSoft}` },
+                    ]}
+                  />
+                  <View style={[styles.telemetryLineShort, { backgroundColor: workflow.accentMuted }]} />
                 </View>
-                <Text style={styles.sectionLabel}>Telemetry &amp; Insights</Text>
-                <View style={[styles.messageShell, glassEnhancement as any]}>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>
+                  Telemetry &amp; Insights
+                </Text>
+                <View
+                  style={[
+                    styles.messageShell,
+                    {
+                      backgroundColor: workflow.fieldBackground,
+                      borderColor: workflow.fieldBorder,
+                      borderRadius: workflow.radius,
+                      boxShadow: workflow.panelShadow,
+                    },
+                    themedGlassEnhancement as any,
+                  ]}>
                   <TextInput
                     multiline
                     onChangeText={setMessage}
                     placeholder="Log details of the interaction..."
-                    placeholderTextColor="rgba(229,115,115,0.4)"
-                    style={styles.messageInput}
+                    placeholderTextColor={workflow.placeholder}
+                    style={[styles.messageInput, { color: workflow.inputText }]}
                     textAlignVertical="top"
                     value={message}
                   />
@@ -410,57 +533,87 @@ export function NewNoirScreen() {
                 onPress={handleSave}
                 style={({ pressed }) => [
                   styles.recordButton,
-                  pressed && !isSubmitting && styles.recordButtonPressed,
+                  {
+                    backgroundColor: pressed && !isSubmitting
+                      ? workflow.primaryPressed
+                      : workflow.primaryBackground,
+                    borderColor: workflow.primaryBorder,
+                    borderRadius: workflow.radius,
+                    boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
+                  },
                   isSubmitting && styles.recordButtonDisabled,
                 ]}>
-                <MaterialIcons name="upload" size={18} color="#FFFFFF" />
-                <Text style={styles.recordButtonText}>
+                <MaterialIcons name="upload" size={18} color={workflow.primaryText} />
+                <Text style={[styles.recordButtonText, { color: workflow.primaryText }]}>
                   {isSubmitting ? 'Recording...' : 'Record Outreach'}
                 </Text>
               </Pressable>
             </View>
           </ScrollView>
 
-          <View style={[styles.bottomNav, headerEnhancement as any]}>
+          <View
+            style={[
+              styles.bottomNav,
+              {
+                backgroundColor: workflow.headerBackground,
+                borderTopColor: workflow.headerBorder,
+                boxShadow: workflow.headerShadow,
+              },
+              themedHeaderEnhancement as any,
+            ]}>
             <Pressable onPress={() => router.push('/outreach-log')} style={styles.navItem}>
-              <MaterialIcons name="home" size={22} color="rgba(229,115,115,0.7)" />
-              <Text style={styles.navLabel}>HOME</Text>
+              <MaterialIcons name="home" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>HOME</Text>
             </Pressable>
 
-            <View style={[styles.navItem, styles.navItemActive]}>
-              <MaterialIcons name="dns" size={22} color="#E57373" style={styles.navIconGlow} />
-              <Text style={[styles.navLabel, styles.navLabelActive]}>LOGS</Text>
+            <View style={[styles.navItem, { backgroundColor: workflow.selectedBackground }]}>
+              <MaterialIcons
+                name="dns"
+                size={22}
+                color={workflow.accent}
+                style={[styles.navIconGlow, { textShadowColor: workflow.accentSoft }]}
+              />
+              <Text style={[styles.navLabel, { color: workflow.accent }]}>LOGS</Text>
             </View>
 
             <Pressable
               onPress={() => router.push('/initiative-dashboard')}
               style={styles.navItem}>
-              <MaterialIcons name="query-stats" size={22} color="rgba(229,115,115,0.7)" />
-              <Text style={styles.navLabel}>TELEMETRY</Text>
+              <MaterialIcons name="query-stats" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>TELEMETRY</Text>
             </Pressable>
 
             <View style={styles.navItem}>
-              <MaterialIcons name="hub" size={22} color="rgba(229,115,115,0.7)" />
-              <Text style={styles.navLabel}>COMMS</Text>
+              <MaterialIcons name="hub" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>COMMS</Text>
             </View>
 
             <View style={styles.navItem}>
-              <MaterialIcons name="memory" size={22} color="rgba(229,115,115,0.7)" />
-              <Text style={styles.navLabel}>SYSTEM</Text>
+              <MaterialIcons name="memory" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>SYSTEM</Text>
             </View>
           </View>
         </View>
 
         <Modal animationType="fade" transparent visible={isAddPersonVisible} onRequestClose={closeAddPerson}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
             <Pressable onPress={closeAddPerson} style={styles.modalDismiss} />
-            <View style={[styles.modalCard, glassEnhancement as any]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
+            <View
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: workflow.modalBackground,
+                  borderColor: workflow.modalBorder,
+                  borderRadius: workflow.radius,
+                },
+                themedGlassEnhancement as any,
+              ]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>
                   {isCompanyStepVisible ? 'Add Company' : 'Add Person'}
                 </Text>
                 <Pressable onPress={closeAddPerson} style={styles.modalCloseButton}>
-                  <MaterialIcons name="close" size={18} color="#E57373" />
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
                 </Pressable>
               </View>
 
@@ -473,60 +626,94 @@ export function NewNoirScreen() {
                     <Pressable
                       onPress={() => setIsCompanyStepVisible(false)}
                       style={styles.backButton}>
-                      <MaterialIcons name="arrow-back" size={16} color="#E57373" />
-                      <Text style={styles.backButtonText}>Back to person</Text>
+                      <MaterialIcons name="arrow-back" size={16} color={workflow.accent} />
+                      <Text style={[styles.backButtonText, { color: workflow.accent }]}>
+                        Back to person
+                      </Text>
                     </Pressable>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Company Name</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Company Name</Text>
                       <TextInput
                         onChangeText={(value) =>
                           setCompanyForm((current) => ({ ...current, name: value }))
                         }
                         placeholder="Northwind Creative"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: workflow.fieldBackground,
+                            borderColor: workflow.fieldBorder,
+                            borderRadius: workflow.radius,
+                            color: workflow.inputText,
+                          },
+                        ]}
                         value={companyForm.name}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Location</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Location</Text>
                       <TextInput
                         onChangeText={(value) =>
                           setCompanyForm((current) => ({ ...current, location: value }))
                         }
                         placeholder="Austin, Texas"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: workflow.fieldBackground,
+                            borderColor: workflow.fieldBorder,
+                            borderRadius: workflow.radius,
+                            color: workflow.inputText,
+                          },
+                        ]}
                         value={companyForm.location}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Phone</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Phone</Text>
                       <TextInput
                         keyboardType="phone-pad"
                         onChangeText={(value) =>
                           setCompanyForm((current) => ({ ...current, phone: value }))
                         }
                         placeholder="+1 555 555 0199"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: workflow.fieldBackground,
+                            borderColor: workflow.fieldBorder,
+                            borderRadius: workflow.radius,
+                            color: workflow.inputText,
+                          },
+                        ]}
                         value={companyForm.phone}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Website</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Website</Text>
                       <TextInput
                         autoCapitalize="none"
                         onChangeText={(value) =>
                           setCompanyForm((current) => ({ ...current, website: value }))
                         }
                         placeholder="https://northwindcreative.com"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[
+                          styles.modalInput,
+                          {
+                            backgroundColor: workflow.fieldBackground,
+                            borderColor: workflow.fieldBorder,
+                            borderRadius: workflow.radius,
+                            color: workflow.inputText,
+                          },
+                        ]}
                         value={companyForm.website}
                       />
                     </View>
@@ -536,11 +723,18 @@ export function NewNoirScreen() {
                       onPress={handleCreateCompany}
                       style={({ pressed }) => [
                         styles.recordButton,
-                        pressed && !isCreatingCompany && styles.recordButtonPressed,
+                        {
+                          backgroundColor: pressed && !isCreatingCompany
+                            ? workflow.primaryPressed
+                            : workflow.primaryBackground,
+                          borderColor: workflow.primaryBorder,
+                          borderRadius: workflow.radius,
+                          boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
+                        },
                         isCreatingCompany && styles.recordButtonDisabled,
                       ]}>
-                      <MaterialIcons name="domain-add" size={18} color="#FFFFFF" />
-                      <Text style={styles.recordButtonText}>
+                      <MaterialIcons name="domain-add" size={18} color={workflow.primaryText} />
+                      <Text style={[styles.recordButtonText, { color: workflow.primaryText }]}>
                         {isCreatingCompany ? 'Saving...' : 'Save Company'}
                       </Text>
                     </Pressable>
@@ -548,46 +742,46 @@ export function NewNoirScreen() {
                 ) : (
                   <>
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Full Name</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Full Name</Text>
                       <TextInput
                         onChangeText={(value) =>
                           setPersonForm((current) => ({ ...current, fullName: value }))
                         }
                         placeholder="Ryan Deame"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.fullName}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Title</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Title</Text>
                       <TextInput
                         onChangeText={(value) =>
                           setPersonForm((current) => ({ ...current, title: value }))
                         }
                         placeholder="Head of Growth"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.title}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Location</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Location</Text>
                       <TextInput
                         onChangeText={(value) =>
                           setPersonForm((current) => ({ ...current, location: value }))
                         }
                         placeholder="Bogota, Colombia"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.location}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Email</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Email</Text>
                       <TextInput
                         autoCapitalize="none"
                         keyboardType="email-address"
@@ -595,60 +789,68 @@ export function NewNoirScreen() {
                           setPersonForm((current) => ({ ...current, email: value }))
                         }
                         placeholder="ryan@example.com"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.email}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>Phone</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Phone</Text>
                       <TextInput
                         keyboardType="phone-pad"
                         onChangeText={(value) =>
                           setPersonForm((current) => ({ ...current, phone: value }))
                         }
                         placeholder="+1 617 870 4615"
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.phone}
                       />
                     </View>
 
                     <View style={styles.modalField}>
-                      <Text style={styles.sectionLabel}>LinkedIn</Text>
+                      <Text style={[styles.sectionLabel, { color: workflow.accent }]}>LinkedIn</Text>
                       <TextInput
                         autoCapitalize="none"
                         onChangeText={(value) =>
                           setPersonForm((current) => ({ ...current, linkedin: value }))
                         }
                         placeholder="linkedin.com/in/..."
-                        placeholderTextColor="rgba(229,115,115,0.4)"
-                        style={styles.modalInput}
+                        placeholderTextColor={workflow.placeholder}
+                        style={[styles.modalInput, themedInputStyle]}
                         value={personForm.linkedin}
                       />
                     </View>
 
                     <View style={styles.modalField}>
                       <View style={styles.companyLabelRow}>
-                        <Text style={styles.sectionLabel}>Company</Text>
+                        <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Company</Text>
                         <Pressable onPress={() => setIsCompanyStepVisible(true)}>
-                          <Text style={styles.companyActionText}>Add company</Text>
+                          <Text style={[styles.companyActionText, { color: workflow.accent }]}>
+                            Add company
+                          </Text>
                         </Pressable>
                       </View>
 
                       <View style={styles.dropdownWrap}>
                         <Pressable
                           onPress={() => setIsCompanyOptionsOpen(true)}
-                          style={[styles.vectorField, glassEnhancement as any]}>
+                          style={[
+                            styles.vectorField,
+                            themedFieldStyle,
+                            themedGlassEnhancement as any,
+                          ]}>
                           <View style={styles.vectorFieldCopy}>
-                            <MaterialIcons name="apartment" size={18} color="#E57373" />
-                            <Text style={styles.vectorFieldText}>{selectedCompanyLabel}</Text>
+                            <MaterialIcons name="apartment" size={18} color={workflow.accent} />
+                            <Text style={[styles.vectorFieldText, { color: workflow.inputText }]}>
+                              {selectedCompanyLabel}
+                            </Text>
                           </View>
                           <MaterialIcons
                             name="chevron-right"
                             size={22}
-                            color="#E57373"
+                            color={workflow.accent}
                             style={styles.vectorChevronOpen}
                           />
                         </Pressable>
@@ -660,11 +862,16 @@ export function NewNoirScreen() {
                       onPress={handleCreatePerson}
                       style={({ pressed }) => [
                         styles.recordButton,
-                        pressed && !isCreatingPerson && styles.recordButtonPressed,
+                        {
+                          ...themedPrimaryButtonStyle,
+                          backgroundColor: pressed && !isCreatingPerson
+                            ? workflow.primaryPressed
+                            : workflow.primaryBackground,
+                        },
                         isCreatingPerson && styles.recordButtonDisabled,
                       ]}>
-                      <MaterialIcons name="person-add-alt-1" size={18} color="#FFFFFF" />
-                      <Text style={styles.recordButtonText}>
+                      <MaterialIcons name="person-add-alt-1" size={18} color={workflow.primaryText} />
+                      <Text style={[styles.recordButtonText, { color: workflow.primaryText }]}>
                         {isCreatingPerson ? 'Saving...' : 'Save Person'}
                       </Text>
                     </Pressable>
@@ -682,6 +889,9 @@ export function NewNoirScreen() {
               style={[
                 styles.successToast,
                 {
+                  backgroundColor: workflow.toastBackground,
+                  borderColor: workflow.toastBorder,
+                  borderRadius: workflow.radius,
                   opacity: successOpacity,
                   transform: [{ translateY: successTranslateY }],
                 },
@@ -692,31 +902,36 @@ export function NewNoirScreen() {
         </Modal>
 
         <Modal animationType="fade" transparent visible={isPeopleOpen} onRequestClose={closePeoplePicker}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
             <Pressable onPress={closePeoplePicker} style={styles.modalDismiss} />
-            <View style={[styles.modalCard, glassEnhancement as any]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Target Entity</Text>
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Target Entity</Text>
                 <Pressable onPress={closePeoplePicker} style={styles.modalCloseButton}>
-                  <MaterialIcons name="close" size={18} color="#E57373" />
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
                 </Pressable>
               </View>
 
               <View style={styles.peoplePickerContent}>
-                <View style={[styles.searchField, glassEnhancement as any]}>
-                  <MaterialIcons name="search" size={18} color="rgba(229,115,115,0.7)" />
+                <View style={[styles.searchField, themedFieldStyle, themedGlassEnhancement as any]}>
+                  <MaterialIcons name="search" size={18} color={workflow.accentMuted} />
                   <TextInput
                     autoFocus
                     onChangeText={setPeopleSearchTerm}
                     placeholder="Search contacts"
-                    placeholderTextColor="rgba(229,115,115,0.4)"
-                    style={styles.searchInput}
+                    placeholderTextColor={workflow.placeholder}
+                    style={[styles.searchInput, { color: workflow.inputText }]}
                     value={peopleSearchTerm}
                   />
                 </View>
 
                 <ScrollView
-                  style={[styles.peopleMenu, styles.peopleMenuModal, glassEnhancement as any]}
+                  style={[
+                    styles.peopleMenu,
+                    styles.peopleMenuModal,
+                    themedMenuStyle,
+                    themedGlassEnhancement as any,
+                  ]}
                   contentContainerStyle={styles.peopleMenuContent}
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
@@ -724,13 +939,19 @@ export function NewNoirScreen() {
                   {!peopleSearchTerm.trim() ? (
                     <Pressable
                       onPress={() => handleSelectPerson('', '')}
-                      style={[styles.peopleItem, styles.peopleItemBorder]}>
-                      <Text style={styles.peopleItemText}>None</Text>
+                      style={[
+                        styles.peopleItem,
+                        styles.peopleItemBorder,
+                        { borderBottomColor: workflow.divider },
+                      ]}>
+                      <Text style={[styles.peopleItemText, { color: workflow.accent }]}>None</Text>
                     </Pressable>
                   ) : null}
 
                   {filteredPeople.length === 0 ? (
-                    <Text style={styles.emptyState}>No matching contacts found.</Text>
+                    <Text style={[styles.emptyState, { color: workflow.accent }]}>
+                      No matching contacts found.
+                    </Text>
                   ) : (
                     filteredPeople.map((person, index) => {
                       const label = person.reach_companies?.name
@@ -743,9 +964,14 @@ export function NewNoirScreen() {
                           onPress={() => handleSelectPerson(person.id, label)}
                           style={[
                             styles.peopleItem,
-                            index < filteredPeople.length - 1 && styles.peopleItemBorder,
+                            index < filteredPeople.length - 1 && [
+                              styles.peopleItemBorder,
+                              { borderBottomColor: workflow.divider },
+                            ],
                           ]}>
-                          <Text style={styles.peopleItemText}>{label}</Text>
+                          <Text style={[styles.peopleItemText, { color: workflow.accent }]}>
+                            {label}
+                          </Text>
                         </Pressable>
                       );
                     })
@@ -757,18 +983,23 @@ export function NewNoirScreen() {
         </Modal>
 
         <Modal animationType="fade" transparent visible={isProtocolOpen} onRequestClose={() => setIsProtocolOpen(false)}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
             <Pressable onPress={() => setIsProtocolOpen(false)} style={styles.modalDismiss} />
-            <View style={[styles.modalCard, glassEnhancement as any]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Communication Type</Text>
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Communication Type</Text>
                 <Pressable onPress={() => setIsProtocolOpen(false)} style={styles.modalCloseButton}>
-                  <MaterialIcons name="close" size={18} color="#E57373" />
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
                 </Pressable>
               </View>
 
               <ScrollView
-                style={[styles.peopleMenu, styles.peopleMenuModal, glassEnhancement as any]}
+                style={[
+                  styles.peopleMenu,
+                  styles.peopleMenuModal,
+                  themedMenuStyle,
+                  themedGlassEnhancement as any,
+                ]}
                 contentContainerStyle={styles.peopleMenuContent}
                 keyboardShouldPersistTaps="handled"
                 nestedScrollEnabled
@@ -785,13 +1016,16 @@ export function NewNoirScreen() {
                       }}
                       style={[
                         styles.protocolItem,
-                        index < communicationProtocols.length - 1 && styles.peopleItemBorder,
-                        isSelected && styles.companyMenuItemSelected,
+                        index < communicationProtocols.length - 1 && [
+                          styles.peopleItemBorder,
+                          { borderBottomColor: workflow.divider },
+                        ],
+                        isSelected && { backgroundColor: workflow.selectedBackground },
                       ]}>
                       <Text
                         style={[
                           styles.protocolItemText,
-                          isSelected && styles.companyMenuItemTextSelected,
+                          { color: isSelected ? workflow.text : workflow.accent },
                         ]}>
                         {protocol.display}
                       </Text>
@@ -808,20 +1042,25 @@ export function NewNoirScreen() {
           transparent
           visible={isCompanyOptionsOpen}
           onRequestClose={() => setIsCompanyOptionsOpen(false)}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
             <Pressable onPress={() => setIsCompanyOptionsOpen(false)} style={styles.modalDismiss} />
-            <View style={[styles.modalCard, glassEnhancement as any]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Company</Text>
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Company</Text>
                 <Pressable
                   onPress={() => setIsCompanyOptionsOpen(false)}
                   style={styles.modalCloseButton}>
-                  <MaterialIcons name="close" size={18} color="#E57373" />
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
                 </Pressable>
               </View>
 
               <ScrollView
-                style={[styles.peopleMenu, styles.peopleMenuModal, glassEnhancement as any]}
+                style={[
+                  styles.peopleMenu,
+                  styles.peopleMenuModal,
+                  themedMenuStyle,
+                  themedGlassEnhancement as any,
+                ]}
                 contentContainerStyle={styles.peopleMenuContent}
                 keyboardShouldPersistTaps="handled"
                 nestedScrollEnabled
@@ -841,13 +1080,16 @@ export function NewNoirScreen() {
                       }}
                       style={[
                         styles.companyMenuItem,
-                        index < companyOptions.length - 1 && styles.peopleItemBorder,
-                        isSelected && styles.companyMenuItemSelected,
+                        index < companyOptions.length - 1 && [
+                          styles.peopleItemBorder,
+                          { borderBottomColor: workflow.divider },
+                        ],
+                        isSelected && { backgroundColor: workflow.selectedBackground },
                       ]}>
                       <Text
                         style={[
                           styles.companyMenuItemText,
-                          isSelected && styles.companyMenuItemTextSelected,
+                          { color: isSelected ? workflow.text : workflow.accent },
                         ]}>
                         {company.name}
                       </Text>
@@ -870,6 +1112,10 @@ const styles = StyleSheet.create({
   },
   root: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  workflowGradient: {
+    ...StyleSheet.absoluteFillObject,
   },
   successToastOverlay: {
     ...StyleSheet.absoluteFillObject,

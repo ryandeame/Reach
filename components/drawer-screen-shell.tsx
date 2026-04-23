@@ -3,9 +3,10 @@ import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { DrawerSceneWrapper } from '@/components/drawer-scene-wrapper';
+import { useReachTheme } from '@/components/reach-theme-provider';
 
 type DrawerScreenShellProps = {
   title: string;
@@ -15,21 +16,32 @@ type DrawerScreenShellProps = {
 
 export function DrawerScreenShell({ title, subtitle, children }: DrawerScreenShellProps) {
   const navigation = useNavigation();
+  const { theme } = useReachTheme();
 
   return (
     <DrawerSceneWrapper>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: theme.shell.background }]}
+        edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <Pressable
             accessibilityLabel="Open navigation drawer"
             onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-            style={({ pressed }) => [styles.menuButton, pressed && styles.menuButtonPressed]}>
-            <Ionicons name="menu" size={24} color="#102A43" />
+            style={({ pressed }) => [
+              styles.menuButton,
+              {
+                backgroundColor: pressed ? theme.shell.menuPressed : theme.shell.menuBackground,
+                borderColor: theme.shell.menuBorder,
+              },
+            ]}>
+            <MaterialIcons name="menu" size={24} color={theme.shell.menuIcon} />
           </Pressable>
 
           <View style={styles.headerCopy}>
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            <Text style={[styles.title, { color: theme.shell.title }]}>{title}</Text>
+            {subtitle ? (
+              <Text style={[styles.subtitle, { color: theme.shell.subtitle }]}>{subtitle}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -53,28 +65,21 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     alignItems: 'center',
-    backgroundColor: '#FCFCF9',
-    borderColor: '#D9E2EC',
     borderRadius: 18,
     borderWidth: 1,
     height: 52,
     justifyContent: 'center',
     width: 52,
   },
-  menuButtonPressed: {
-    backgroundColor: '#EEF5FB',
-  },
   headerCopy: {
     flex: 1,
     gap: 2,
   },
   title: {
-    color: '#102A43',
     fontSize: 20,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#52606D',
     fontSize: 13,
     lineHeight: 18,
   },

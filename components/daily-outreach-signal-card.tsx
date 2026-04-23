@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useReachTheme } from '@/components/reach-theme-provider';
 import { useDailyUniqueOutreachCount } from '@/hooks/use-daily-unique-outreach-count';
 
 const BAR_HEIGHTS = [14, 22, 30, 38, 46];
@@ -26,6 +27,8 @@ function formatCurrentMoment(date: Date) {
 }
 
 export function DailyOutreachSignalCard() {
+  const { theme } = useReachTheme();
+  const dashboard = theme.dashboard;
   const [now, setNow] = useState(() => new Date());
   const { count, isLoading, error } = useDailyUniqueOutreachCount(now);
 
@@ -52,17 +55,25 @@ export function DailyOutreachSignalCard() {
       : 'Every full 2 unique contacts lights up one more bar.';
 
   return (
-    <View style={styles.card}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: dashboard.cardBackground,
+          borderColor: dashboard.cardBorder,
+          boxShadow: dashboard.cardShadow,
+        },
+      ]}>
       <View style={styles.header}>
         <View style={styles.copy}>
-          <Text style={styles.eyebrow}>Today&apos;s Signal</Text>
-          <Text style={styles.title}>{formatCurrentMoment(now)}</Text>
-          <Text style={styles.subtitle}>{progressLabel}</Text>
+          <Text style={[styles.eyebrow, { color: dashboard.label }]}>Today&apos;s Signal</Text>
+          <Text style={[styles.title, { color: dashboard.value }]}>{formatCurrentMoment(now)}</Text>
+          <Text style={[styles.subtitle, { color: dashboard.body }]}>{progressLabel}</Text>
         </View>
       </View>
 
       <View style={styles.body}>
-        <View style={styles.signalWrap}>
+        <View style={[styles.signalWrap, { backgroundColor: dashboard.signalPanel }]}>
           {BAR_HEIGHTS.map((height, index) => {
             const active = index < filledBars;
 
@@ -72,7 +83,11 @@ export function DailyOutreachSignalCard() {
                 style={[
                   styles.bar,
                   { height, opacity: active ? 1 : 0.2 },
-                  active ? styles.barActive : styles.barInactive,
+                  {
+                    backgroundColor: active
+                      ? dashboard.signalBarActive
+                      : dashboard.signalBarInactive,
+                  },
                 ]}
               />
             );
@@ -80,9 +95,11 @@ export function DailyOutreachSignalCard() {
         </View>
 
         <View style={styles.meta}>
-          <Text style={styles.count}>{isLoading ? '...' : count}</Text>
-          <Text style={styles.countLabel}>unique contacts logged today</Text>
-          <Text style={styles.hint}>{supportingCopy}</Text>
+          <Text style={[styles.count, { color: dashboard.value }]}>{isLoading ? '...' : count}</Text>
+          <Text style={[styles.countLabel, { color: dashboard.label }]}>
+            unique contacts logged today
+          </Text>
+          <Text style={[styles.hint, { color: dashboard.body }]}>{supportingCopy}</Text>
         </View>
       </View>
     </View>
@@ -91,8 +108,7 @@ export function DailyOutreachSignalCard() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FCFCF9',
-    boxShadow: '0px 12px 22px rgba(16, 42, 67, 0.08)',
+    borderWidth: 1,
     borderRadius: 28,
     gap: 18,
     padding: 22,
@@ -108,20 +124,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   eyebrow: {
-    color: '#0F766E',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
-    color: '#102A43',
     fontSize: 20,
     fontWeight: '800',
     lineHeight: 27,
   },
   subtitle: {
-    color: '#52606D',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -133,7 +146,6 @@ const styles = StyleSheet.create({
   signalWrap: {
     alignItems: 'flex-end',
     alignSelf: 'stretch',
-    backgroundColor: '#102A43',
     borderRadius: 24,
     flexDirection: 'row',
     gap: 6,
@@ -148,30 +160,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     width: 10,
   },
-  barActive: {
-    backgroundColor: '#99F6E4',
-  },
-  barInactive: {
-    backgroundColor: '#E6FFFA',
-  },
   meta: {
     flex: 1,
     gap: 4,
   },
   count: {
-    color: '#0F766E',
     fontSize: 42,
     fontWeight: '800',
     lineHeight: 48,
   },
   countLabel: {
-    color: '#102A43',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
   },
   hint: {
-    color: '#52606D',
     fontSize: 13,
     lineHeight: 19,
   },

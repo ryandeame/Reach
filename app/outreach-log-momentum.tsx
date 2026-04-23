@@ -1,5 +1,5 @@
-import { OutreachLogScreen } from '@/components/outreach-log-screen';
+import { Redirect } from 'expo-router';
 
 export default function OutreachLogMomentumRoute() {
-  return <OutreachLogScreen variant="momentum" />;
+  return <Redirect href="/outreach-log" />;
 }

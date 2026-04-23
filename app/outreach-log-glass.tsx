@@ -1,5 +1,5 @@
-import { OutreachLogScreen } from '@/components/outreach-log-screen';
+import { Redirect } from 'expo-router';
 
 export default function OutreachLogGlassRoute() {
-  return <OutreachLogScreen variant="glass" />;
+  return <Redirect href="/outreach-log" />;
 }

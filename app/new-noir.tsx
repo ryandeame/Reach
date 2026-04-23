@@ -1,5 +1,5 @@
-import { NewNoirScreen } from '@/components/new-noir-screen';
+import { Redirect } from 'expo-router';
 
 export default function NewNoirRoute() {
-  return <NewNoirScreen />;
+  return <Redirect href="/outreach-log" />;
 }

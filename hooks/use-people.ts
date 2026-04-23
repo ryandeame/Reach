@@ -45,7 +45,7 @@ export function usePeople() {
         throw queryError;
       }
 
-      setPeople((data ?? []) as ReachPerson[]);
+      setPeople((data ?? []) as unknown as ReachPerson[]);
     } catch (error) {
       setPeople([]);
       setError(error instanceof Error ? error.message : 'Unable to load people.');
