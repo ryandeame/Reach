@@ -29,6 +29,7 @@ function formatCurrentMoment(date: Date) {
 export function DailyOutreachSignalCard() {
   const { theme } = useReachTheme();
   const dashboard = theme.dashboard;
+  const dashboardValueColor = dashboard.value;
   const [now, setNow] = useState(() => new Date());
   const { count, isLoading, error } = useDailyUniqueOutreachCount(now);
 
@@ -67,7 +68,7 @@ export function DailyOutreachSignalCard() {
       <View style={styles.header}>
         <View style={styles.copy}>
           <Text style={[styles.eyebrow, { color: dashboard.label }]}>Today&apos;s Signal</Text>
-          <Text style={[styles.title, { color: dashboard.value }]}>{formatCurrentMoment(now)}</Text>
+          <Text style={[styles.title, { color: dashboardValueColor }]}>{formatCurrentMoment(now)}</Text>
           <Text style={[styles.subtitle, { color: dashboard.body }]}>{progressLabel}</Text>
         </View>
       </View>
@@ -95,7 +96,7 @@ export function DailyOutreachSignalCard() {
         </View>
 
         <View style={styles.meta}>
-          <Text style={[styles.count, { color: dashboard.value }]}>{isLoading ? '...' : count}</Text>
+          <Text style={[styles.count, { color: dashboardValueColor }]}>{isLoading ? '...' : count}</Text>
           <Text style={[styles.countLabel, { color: dashboard.label }]}>
             unique contacts logged today
           </Text>
