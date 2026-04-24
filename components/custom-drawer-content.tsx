@@ -20,6 +20,11 @@ const navItems = [
     route: 'outreach-log',
   },
   {
+    icon: 'share',
+    label: 'Social Post Log',
+    route: 'social-post-log',
+  },
+  {
     icon: 'dashboard',
     label: 'Initiative Dashboard',
     route: 'initiative-dashboard',

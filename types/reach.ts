@@ -26,6 +26,14 @@ export type ReachOutreachLog = {
   timestamp: string;
 };
 
+export type ReachSocialPostLog = {
+  id: string;
+  target_entity: string;
+  vector: string;
+  details: string | null;
+  timestamp: string;
+};
+
 export type CreateCompanyInput = {
   name: string;
   location: string;
@@ -47,5 +55,12 @@ export type CreateOutreachLogInput = {
   personId: string;
   commType: string;
   message: string;
+  timestamp?: string;
+};
+
+export type CreateSocialPostLogInput = {
+  targetEntity: string;
+  vector: string;
+  details: string;
   timestamp?: string;
 };

@@ -44,6 +44,7 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
    - `sql/004_add_person_location.sql`
    - `sql/005_recent_daily_unique_outreach_activity.sql`
    - `sql/006_recent_daily_outreach_elapsed_hours.sql`
+   - `sql/007_create_social_post_log.sql`
 
 4. Start the app:
 
@@ -62,6 +63,7 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
 - `002_daily_unique_outreach_signal.sql` adds an RPC function used by the dashboard to count distinct contacts reached within the device's local day
 - `005_recent_daily_unique_outreach_activity.sql` adds the 10-day unique-contact activity RPC used by the dashboard bar chart
 - `006_recent_daily_outreach_elapsed_hours.sql` adds the 10-day first-to-last log span RPC used by the dashboard span chart
+- `007_create_social_post_log.sql` adds the social post log table and daily social post count RPC
 
 ## Project Structure
 
@@ -80,6 +82,7 @@ types/
 ## Current Product Shape
 
 - Main screen focused on fast outreach logging
+- Social post log for LinkedIn, Instagram, Facebook, and Twitter/X posts
 - Add-person modal with inline company creation flow
 - Initiative dashboard with:
   - recent unique-contact activity chart

@@ -55,6 +55,15 @@ function RootDrawer() {
         }}
       />
       <Drawer.Screen
+        name="social-post-log"
+        options={{
+          title: 'Social Post Log',
+          drawerIcon: ({ color, size }) => (
+            <MaterialIcons name="share" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="initiative-dashboard"
         options={{
           title: 'Initiative Dashboard',
