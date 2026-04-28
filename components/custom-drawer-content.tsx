@@ -25,6 +25,11 @@ const navItems = [
     route: 'social-post-log',
   },
   {
+    icon: 'work',
+    label: 'Apply Log',
+    route: 'apply-log',
+  },
+  {
     icon: 'dashboard',
     label: 'Initiative Dashboard',
     route: 'initiative-dashboard',

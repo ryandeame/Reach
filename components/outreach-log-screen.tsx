@@ -15,9 +15,11 @@ import {
   View,
 } from 'react-native';
 
+import { CompanyFormFields } from '@/components/company-form-fields';
 import { DrawerScreenShell } from '@/components/drawer-screen-shell';
 import { SelectField } from '@/components/select-field';
 import { useCompanies } from '@/hooks/use-companies';
+import { useCompanyJsonDropImport } from '@/hooks/use-company-json-drop-import';
 import { useCreateCompany } from '@/hooks/use-create-company';
 import { useCreateOutreachLog } from '@/hooks/use-create-outreach-log';
 import { useCreatePerson } from '@/hooks/use-create-person';
@@ -628,6 +630,19 @@ export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProp
     }
   };
 
+  const updateCompanyForm = (field: keyof typeof initialCompanyForm, value: string) => {
+    setCompanyForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const importCompanyForm = (fields: Partial<typeof initialCompanyForm>) => {
+    setCompanyForm((current) => ({ ...current, ...fields }));
+  };
+
+  const isCompanyJsonDragging = useCompanyJsonDropImport(
+    isPersonModalVisible && isCompanyStepVisible,
+    importCompanyForm,
+  );
+
   const dataMessage = [peopleError, companiesError].filter(Boolean).join('\n');
   const stats = [
     {
@@ -1003,6 +1018,23 @@ export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProp
                     borderRadius: theme.panelRadius,
                   },
                 ]}>
+                {isCompanyJsonDragging ? (
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.dropOverlay,
+                      {
+                        backgroundColor: `${theme.inlineLink}33`,
+                        borderColor: theme.inlineLink,
+                        borderRadius: theme.panelRadius,
+                      },
+                    ]}>
+                    <Text style={[styles.dropOverlayText, { color: theme.inlineLink }]}>
+                      Drop file here
+                    </Text>
+                  </View>
+                ) : null}
+
                 <View
                   style={[
                     styles.modalHeader,
@@ -1253,95 +1285,21 @@ export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProp
                             </Text>
                           </Pressable>
 
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>
-                              Company name
-                            </Text>
-                            <TextInput
-                              autoCapitalize="words"
-                              onChangeText={(value) =>
-                                setCompanyForm((current) => ({ ...current, name: value }))
-                              }
-                              placeholder="Northwind Creative"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={companyForm.name}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Location</Text>
-                            <TextInput
-                              autoCapitalize="words"
-                              onChangeText={(value) =>
-                                setCompanyForm((current) => ({ ...current, location: value }))
-                              }
-                              placeholder="Austin, Texas"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={companyForm.location}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Phone</Text>
-                            <TextInput
-                              keyboardType="phone-pad"
-                              onChangeText={(value) =>
-                                setCompanyForm((current) => ({ ...current, phone: value }))
-                              }
-                              placeholder="+1 555 555 0199"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={companyForm.phone}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Website</Text>
-                            <TextInput
-                              autoCapitalize="none"
-                              onChangeText={(value) =>
-                                setCompanyForm((current) => ({ ...current, website: value }))
-                              }
-                              placeholder="https://northwindcreative.com"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={companyForm.website}
-                            />
-                          </View>
+                          <CompanyFormFields
+                            inputStyle={[
+                              styles.input,
+                              {
+                                backgroundColor: theme.inputBackground,
+                                borderColor: theme.inputBorder,
+                                borderRadius: theme.controlRadius,
+                                color: theme.inputText,
+                              },
+                            ]}
+                            labelColor={theme.fieldLabel}
+                            onChangeField={updateCompanyForm}
+                            placeholderColor={theme.inputPlaceholder}
+                            value={companyForm}
+                          />
                         </View>
                       </ScrollView>
 
@@ -1658,6 +1616,19 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 1,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  dropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    justifyContent: 'center',
+    zIndex: 20,
+  },
+  dropOverlayText: {
+    fontSize: 22,
+    fontWeight: '900',
   },
   modalHeader: {
     alignItems: 'flex-start',

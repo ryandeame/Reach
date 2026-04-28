@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 
-export type RecentOutreachElapsedTimePoint = {
+export type RecentJobApplicationElapsedTimePoint = {
   date: Date;
   key: string;
   label: string;
@@ -10,7 +10,7 @@ export type RecentOutreachElapsedTimePoint = {
   value: number;
 };
 
-type RecentOutreachElapsedTimeRpcRow = {
+type RecentJobApplicationElapsedTimeRpcRow = {
   activity_date: string;
   elapsed_hours: number | string | null;
 };
@@ -61,8 +61,8 @@ function normalizeElapsedHours(value: number | string | null) {
   return Number.isFinite(parsed) ? Math.round(parsed * 10) / 10 : 0;
 }
 
-export function useRecentOutreachElapsedTime() {
-  const [elapsedTime, setElapsedTime] = useState<RecentOutreachElapsedTimePoint[]>(() =>
+export function useRecentJobApplicationElapsedTime() {
+  const [elapsedTime, setElapsedTime] = useState<RecentJobApplicationElapsedTimePoint[]>(() =>
     buildRecentDays()
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -84,7 +84,7 @@ export function useRecentOutreachElapsedTime() {
     try {
       const client = getSupabaseClient();
       const { data, error: queryError } = await client.rpc(
-        'get_recent_daily_outreach_elapsed_hours',
+        'get_recent_daily_job_application_elapsed_hours',
         {
           day_count: days.length,
           start_on: days[0].key,
@@ -97,7 +97,7 @@ export function useRecentOutreachElapsedTime() {
       }
 
       const elapsedHoursByDay = new Map(
-        ((data ?? []) as RecentOutreachElapsedTimeRpcRow[]).map((row) => [
+        ((data ?? []) as RecentJobApplicationElapsedTimeRpcRow[]).map((row) => [
           row.activity_date,
           normalizeElapsedHours(row.elapsed_hours),
         ])
@@ -111,7 +111,7 @@ export function useRecentOutreachElapsedTime() {
       );
     } catch (error) {
       setElapsedTime(days);
-      setError(error instanceof Error ? error.message : 'Unable to load outreach elapsed time.');
+      setError(error instanceof Error ? error.message : 'Unable to load application elapsed time.');
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +123,6 @@ export function useRecentOutreachElapsedTime() {
 
   const stats = useMemo(() => {
     const total = elapsedTime.reduce((sum, day) => sum + day.value, 0);
-    const peak = Math.max(0, ...elapsedTime.map((day) => day.value));
     const positiveSpans = elapsedTime.map((day) => day.value).filter((value) => value > 0);
     const fastest = positiveSpans.length > 0 ? Math.min(...positiveSpans) : 0;
     const average = total / elapsedTime.length;
@@ -131,7 +130,6 @@ export function useRecentOutreachElapsedTime() {
     return {
       average,
       fastest,
-      peak,
       total,
     };
   }, [elapsedTime]);

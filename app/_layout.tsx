@@ -64,6 +64,15 @@ function RootDrawer() {
         }}
       />
       <Drawer.Screen
+        name="apply-log"
+        options={{
+          title: 'Apply Log',
+          drawerIcon: ({ color, size }) => (
+            <MaterialIcons name="work" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen
         name="initiative-dashboard"
         options={{
           title: 'Initiative Dashboard',

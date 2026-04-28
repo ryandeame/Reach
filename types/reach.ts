@@ -34,6 +34,17 @@ export type ReachSocialPostLog = {
   timestamp: string;
 };
 
+export type ReachJobApplication = {
+  id: string;
+  company_id: string;
+  title: string;
+  location: string | null;
+  submitted_resume: string | null;
+  job_post_url: string | null;
+  notes: string | null;
+  timestamp: string;
+};
+
 export type CreateCompanyInput = {
   name: string;
   location: string;
@@ -62,5 +73,15 @@ export type CreateSocialPostLogInput = {
   targetEntity: string;
   vector: string;
   details: string;
+  timestamp?: string;
+};
+
+export type CreateJobApplicationInput = {
+  companyId: string;
+  title: string;
+  location: string;
+  submittedResume: string;
+  jobPostUrl: string;
+  notes: string;
   timestamp?: string;
 };

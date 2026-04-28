@@ -5,6 +5,7 @@ import { DrawerScreenShell } from '@/components/drawer-screen-shell';
 import { useReachTheme } from '@/components/reach-theme-provider';
 import { useCompanies } from '@/hooks/use-companies';
 import { usePeople } from '@/hooks/use-people';
+import { RecentJobApplicationActivityCard } from '../components/recent-job-application-activity-card';
 import { RecentOutreachActivityCard } from '../components/recent-outreach-activity-card';
 
 export default function InitiativeDashboardScreen() {
@@ -25,6 +26,8 @@ export default function InitiativeDashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <RecentOutreachActivityCard />
+
+        <RecentJobApplicationActivityCard />
 
         <DailyOutreachSignalCard />
 

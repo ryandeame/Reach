@@ -5,48 +5,48 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useReachTheme } from '@/components/reach-theme-provider';
 import {
-  RecentOutreachElapsedTimePoint,
-  useRecentOutreachElapsedTime,
-} from '@/hooks/use-recent-outreach-elapsed-time';
+  RecentJobApplicationActivityPoint,
+  useRecentJobApplicationActivity,
+} from '@/hooks/use-recent-job-application-activity';
 import {
-  RecentOutreachActivityPoint,
-  useRecentOutreachActivity,
-} from '@/hooks/use-recent-outreach-activity';
+  RecentJobApplicationElapsedTimePoint,
+  useRecentJobApplicationElapsedTime,
+} from '@/hooks/use-recent-job-application-elapsed-time';
 
-type OutreachActivityChartProps = {
+type JobApplicationActivityChartProps = {
   accentColor: string;
   ariaLabel?: string;
-  data: RecentOutreachActivityPoint[] | RecentOutreachElapsedTimePoint[];
+  data: RecentJobApplicationActivityPoint[] | RecentJobApplicationElapsedTimePoint[];
   formatYLabel?: (value: number) => string;
   gradientId?: string;
   gridColor: string;
   labelColor: string;
   secondaryAccentColor?: string;
-  secondaryData?: RecentOutreachActivityPoint[];
+  secondaryData?: RecentJobApplicationActivityPoint[];
   secondaryFormatYLabel?: (value: number) => string;
 };
 
-type RecentOutreachActivityCardBaseProps = {
-  ChartComponent: (props: OutreachActivityChartProps) => React.ReactNode;
+type RecentJobApplicationActivityCardBaseProps = {
+  ChartComponent: (props: JobApplicationActivityChartProps) => React.ReactNode;
 };
 
-export function RecentOutreachActivityCardBase({
+export function RecentJobApplicationActivityCardBase({
   ChartComponent,
-}: RecentOutreachActivityCardBaseProps) {
+}: RecentJobApplicationActivityCardBaseProps) {
   const { theme } = useReachTheme();
   const dashboard = theme.dashboard;
   const dashboardValueColor = dashboard.value;
-  const { activity, error, isLoading, refresh, stats } = useRecentOutreachActivity();
+  const { activity, error, isLoading, refresh, stats } = useRecentJobApplicationActivity();
   const {
     elapsedTime,
     error: elapsedTimeError,
     isLoading: elapsedTimeLoading,
     refresh: refreshElapsedTime,
     stats: elapsedTimeStats,
-  } = useRecentOutreachElapsedTime();
+  } = useRecentJobApplicationElapsedTime();
   const averageLabel = stats.average.toFixed(1);
-  const elapsedFastestLabel = `${elapsedTimeStats.fastest.toFixed(1)}h`;
   const elapsedAverageLabel = `${elapsedTimeStats.average.toFixed(1)}h`;
+  const elapsedFastestLabel = `${elapsedTimeStats.fastest.toFixed(1)}h`;
   const elapsedHoursColor = dashboard.signalBarActive;
   const isChartLoading = isLoading || elapsedTimeLoading;
 
@@ -77,12 +77,12 @@ export function RecentOutreachActivityCardBase({
 
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: dashboard.label }]}>10-day productivity</Text>
+          <Text style={[styles.eyebrow, { color: dashboard.label }]}>10-day applications</Text>
           <Text style={[styles.title, { color: dashboardValueColor }]}>
-            Daily Outreach Productivity
+            Daily Application Productivity
           </Text>
           <Text style={[styles.subtitle, { color: dashboard.body }]}>
-            Elapsed outreach hours and unique contacts across the most recent 10-day window.
+            Elapsed application hours and jobs applied across the most recent 10-day window.
           </Text>
         </View>
 
@@ -102,7 +102,7 @@ export function RecentOutreachActivityCardBase({
         <View style={styles.legendItem}>
           <View style={[styles.legendSwatch, { backgroundColor: dashboardValueColor }]} />
           <Text style={[styles.legendLabel, { color: dashboard.body }]}>
-            unique contacts, right axis
+            applications, right axis
           </Text>
         </View>
       </View>
@@ -110,10 +110,10 @@ export function RecentOutreachActivityCardBase({
       <View style={styles.chartWrap}>
         <ChartComponent
           accentColor={elapsedHoursColor}
-          ariaLabel="Recent outreach elapsed time and unique contacts bar chart"
+          ariaLabel="Recent job application elapsed time and application count bar chart"
           data={elapsedTime}
           formatYLabel={(value) => value.toFixed(1)}
-          gradientId="recentOutreachElapsedHoursBars"
+          gradientId="recentJobApplicationBars"
           gridColor={dashboard.cardBorder}
           labelColor={dashboard.label}
           secondaryAccentColor={dashboardValueColor}

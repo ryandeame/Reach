@@ -5,9 +5,12 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
 ## What It Does
 
 - Log outreach activity against an existing contact
+- Log job applications against an existing company
 - Create people and companies inline from the main logging flow
 - Browse the app through an animated drawer with:
   - `Outreach Log`
+  - `Apply Log`
+  - `Social Post Log`
   - `Initiative Dashboard`
 - Track daily momentum with a signal-style card based on unique contacts reached that day
 
@@ -45,6 +48,7 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
    - `sql/005_recent_daily_unique_outreach_activity.sql`
    - `sql/006_recent_daily_outreach_elapsed_hours.sql`
    - `sql/007_create_social_post_log.sql`
+   - `sql/008_create_job_application_log.sql`
 
 4. Start the app:
 
@@ -64,6 +68,7 @@ Reach is a simple Expo + Supabase CRM app for logging client outreach, managing 
 - `005_recent_daily_unique_outreach_activity.sql` adds the 10-day unique-contact activity RPC used by the dashboard bar chart
 - `006_recent_daily_outreach_elapsed_hours.sql` adds the 10-day first-to-last log span RPC used by the dashboard span chart
 - `007_create_social_post_log.sql` adds the social post log table and daily social post count RPC
+- `008_create_job_application_log.sql` adds the job application table plus daily, 10-day count, and 10-day elapsed-hours RPCs
 
 ## Project Structure
 
@@ -83,10 +88,12 @@ types/
 
 - Main screen focused on fast outreach logging
 - Social post log for LinkedIn, Instagram, Facebook, and Twitter/X posts
+- Apply log for tracking job applications against companies
 - Add-person modal with inline company creation flow
 - Initiative dashboard with:
   - recent unique-contact activity chart
   - daily outreach span chart with elapsed hours and unique contacts on two y axes
+  - 10-day job application productivity chart with elapsed hours and applications on two y axes
   - people count
   - company count
   - daily outreach signal card
