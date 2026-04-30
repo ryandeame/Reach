@@ -60,15 +60,22 @@ const COMPANY_NAME_SELECTOR = "h1.org-top-card-summary__title";
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const getCompanyName = () => {
+    // Handles desktop and mobile selectors for company name
+
+    return document.querySelector("h1.org-top-card-summary__title")
+      ? document.querySelector("h1.org-top-card-summary__title")
+      : document.querySelector("h1.top-card-layout__title");
+  };
+
   const result = compactObject({
     sourceUrl: location.href,
-    companyName:
-      document.querySelector(COMPANY_NAME_SELECTOR)?.innerText.trim() || null,
+    companyName: getCompanyName() ? getCompanyName().innerText.trim() : null,
     website: getValueAfterLabel("Website"),
     phone: getValueAfterLabel("Phone"),
     location: getValueAfterLabel("Headquarters"),
   });
 
   console.log(result);
-  downloadJson(result);
+  //downloadJson(result);
 })();

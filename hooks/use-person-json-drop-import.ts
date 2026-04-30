@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { mapCompanyJsonToForm } from '@/components/company-json-import';
-import type { CreateCompanyInput } from '@/types/reach';
+import { mapPersonJsonToForm } from '@/components/person-json-import';
+import type { CreatePersonInput } from '@/types/reach';
 
 function hasFile(event: DragEvent) {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files');
@@ -17,9 +17,9 @@ function readFile(file: File) {
   });
 }
 
-export function useCompanyJsonDropImport(
+export function usePersonJsonDropImport(
   enabled: boolean,
-  onImport: (fields: Partial<CreateCompanyInput>) => void,
+  onImport: (fields: Partial<CreatePersonInput>) => void,
 ) {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const isDraggingFileRef = useRef(false);
@@ -30,7 +30,7 @@ export function useCompanyJsonDropImport(
   }, [onImport]);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || typeof document === 'undefined' || typeof window === 'undefined') {
       setIsDraggingFile(false);
       isDraggingFileRef.current = false;
       return;
@@ -64,10 +64,10 @@ export function useCompanyJsonDropImport(
       try {
         const text = await readFile(file);
         const parsed = JSON.parse(text);
-        onImportRef.current(mapCompanyJsonToForm(parsed));
+        onImportRef.current(mapPersonJsonToForm(parsed));
       } catch (error) {
         Alert.alert(
-          'Unable to import company',
+          'Unable to import person',
           error instanceof Error ? error.message : 'The file does not contain valid JSON.',
         );
       }

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { DrawerActions, useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useNavigation } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -11,20 +13,32 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CompanyFormFields } from '@/components/company-form-fields';
-import { DrawerScreenShell } from '@/components/drawer-screen-shell';
-import { SelectField } from '@/components/select-field';
+import { AddCompanyPanel } from '@/components/add-company-panel';
+import { AddPersonPanel } from '@/components/add-person-panel';
+import { DrawerSceneWrapper } from '@/components/drawer-scene-wrapper';
+import { useReachTheme } from '@/components/reach-theme-provider';
 import { useCompanies } from '@/hooks/use-companies';
-import { useCompanyJsonDropImport } from '@/hooks/use-company-json-drop-import';
 import { useCreateCompany } from '@/hooks/use-create-company';
-import { useCreateOutreachLog } from '@/hooks/use-create-outreach-log';
 import { useCreatePerson } from '@/hooks/use-create-person';
+import { useCreateOutreachLog } from '@/hooks/use-create-outreach-log';
+import { useDailyUniqueOutreachCount } from '@/hooks/use-daily-unique-outreach-count';
 import { usePeople } from '@/hooks/use-people';
-import { isSupabaseConfigured } from '@/lib/supabase';
+
+const DAILY_GOAL = 10;
+
+const communicationProtocols = [
+  { display: 'None', value: '' },
+  { display: 'Email', value: 'Email' },
+  { display: 'LinkedIn DM', value: 'LinkedIn DM' },
+  { display: 'Facebook Message', value: 'Facebook Message' },
+  { display: 'Twitter/X DM', value: 'Twitter/X DM' },
+  { display: 'Discord DM', value: 'Discord DM' },
+  { display: 'Reddit Chat', value: 'Reddit Chat' },
+];
 
 const initialPersonForm = {
   fullName: '',
@@ -43,574 +57,244 @@ const initialCompanyForm = {
   website: '',
 };
 
-const communicationTypeOptions = [
-  { label: 'Choose a communication type', value: '' },
-  { label: 'Email', value: 'Email' },
-  { label: 'LinkedIn DM', value: 'LinkedIn DM' },
-  { label: 'Facebook Message', value: 'Facebook Message' },
-  { label: 'Twitter/X DM', value: 'Twitter/X DM' },
-  { label: 'Discord DM', value: 'Discord DM' },
-  { label: 'Reddit Chat', value: 'Reddit Chat' },
-];
+const glassEnhancement =
+  Platform.OS === 'web'
+    ? ({
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      } as const)
+    : null;
 
-export type OutreachLogVariant = 'default' | 'noir' | 'momentum' | 'glass' | 'precision';
+const headerEnhancement =
+  Platform.OS === 'web'
+    ? ({
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      } as const)
+    : null;
 
-type ThemeConfig = {
-  shellTitle: string;
-  shellSubtitle: string;
-  heroEyebrow: string;
-  heroTitle: string;
-  heroCopy: string;
-  heroBadgePrimary: string;
-  heroBadgeSecondary: string;
-  modeLabel: string;
-  screenBackground: string;
-  heroBackground: string;
-  heroBorderColor: string;
-  heroEyebrowColor: string;
-  heroTitleColor: string;
-  heroCopyColor: string;
-  heroBadgeBackground: string;
-  heroBadgeText: string;
-  heroBadgeSecondaryBackground: string;
-  heroBadgeSecondaryText: string;
-  heroOrbOne: string;
-  heroOrbTwo: string;
-  heroGlow: string;
-  noticeBackground: string;
-  noticeBorder: string;
-  noticeTitle: string;
-  noticeCopy: string;
-  warningBackground: string;
-  warningBorder: string;
-  warningText: string;
-  statCardBackground: string;
-  statCardBorder: string;
-  statLabelColor: string;
-  statValueColor: string;
-  statHintColor: string;
-  cardBackground: string;
-  cardBorder: string;
-  cardShadow: string;
-  cardTitle: string;
-  cardCopy: string;
-  fieldLabel: string;
-  inputBackground: string;
-  inputBorder: string;
-  inputText: string;
-  inputPlaceholder: string;
-  primaryBackground: string;
-  primaryPressed: string;
-  primaryText: string;
-  secondaryBackground: string;
-  secondaryBorder: string;
-  secondaryPressed: string;
-  secondaryText: string;
-  inlineLink: string;
-  modalOverlay: string;
-  modalBackground: string;
-  modalBorder: string;
-  modalHeaderBorder: string;
-  modalTitle: string;
-  modalCopy: string;
-  closeChipBackground: string;
-  closeChipText: string;
-  heroRadius: number;
-  panelRadius: number;
-  controlRadius: number;
-  chipRadius: number;
-  showHeroOrbs: boolean;
-  showHeroSeams: boolean;
-  seamColor: string;
-  seamGlow: string;
-};
-
-const themes: Record<OutreachLogVariant, ThemeConfig> = {
-  default: {
-    shellTitle: 'Outreach Log',
-    shellSubtitle: 'Capture the next touchpoint, add new contacts, and create companies inline.',
-    heroEyebrow: 'Reach Flow',
-    heroTitle: 'Log client outreach without leaving the first screen.',
-    heroCopy:
-      'Pick an existing person, add a new one inline, and create missing companies from the same modal flow.',
-    heroBadgePrimary: 'Fast logging',
-    heroBadgeSecondary: 'Inline contact capture',
-    modeLabel: 'Core',
-    screenBackground: '#F4F7FB',
-    heroBackground: '#102A43',
-    heroBorderColor: '#274C66',
-    heroEyebrowColor: '#9AE6B4',
-    heroTitleColor: '#FDFDFB',
-    heroCopyColor: '#D9E2EC',
-    heroBadgeBackground: 'rgba(154, 230, 180, 0.16)',
-    heroBadgeText: '#C6F6D5',
-    heroBadgeSecondaryBackground: 'rgba(125, 211, 252, 0.18)',
-    heroBadgeSecondaryText: '#BAE6FD',
-    heroOrbOne: 'rgba(20, 184, 166, 0.22)',
-    heroOrbTwo: 'rgba(125, 211, 252, 0.18)',
-    heroGlow: 'rgba(15, 118, 110, 0.35)',
-    noticeBackground: '#FFF7ED',
-    noticeBorder: '#FDBA74',
-    noticeTitle: '#9A3412',
-    noticeCopy: '#7C2D12',
-    warningBackground: '#FEF2F2',
-    warningBorder: '#FCA5A5',
-    warningText: '#991B1B',
-    statCardBackground: '#FFFFFF',
-    statCardBorder: '#DBE7F1',
-    statLabelColor: '#52606D',
-    statValueColor: '#0F766E',
-    statHintColor: '#7B8794',
-    cardBackground: '#FCFCF9',
-    cardBorder: '#E6EDF5',
-    cardShadow: '0px 14px 28px rgba(16, 42, 67, 0.08)',
-    cardTitle: '#102A43',
-    cardCopy: '#52606D',
-    fieldLabel: '#213547',
-    inputBackground: '#FFFFFF',
-    inputBorder: '#C9D7E3',
-    inputText: '#102A43',
-    inputPlaceholder: '#7B8794',
-    primaryBackground: '#0F766E',
-    primaryPressed: '#115E59',
-    primaryText: '#F8FFFD',
-    secondaryBackground: '#E0F2FE',
-    secondaryBorder: '#7DD3FC',
-    secondaryPressed: '#D0EAFD',
-    secondaryText: '#0C4A6E',
-    inlineLink: '#0F766E',
-    modalOverlay: 'rgba(15, 23, 42, 0.4)',
-    modalBackground: '#FCFCF9',
-    modalBorder: '#E6EDF5',
-    modalHeaderBorder: '#E3ECF3',
-    modalTitle: '#102A43',
-    modalCopy: '#52606D',
-    closeChipBackground: '#E6FFFA',
-    closeChipText: '#0F766E',
-    heroRadius: 32,
-    panelRadius: 32,
-    controlRadius: 18,
-    chipRadius: 999,
-    showHeroOrbs: true,
-    showHeroSeams: false,
-    seamColor: 'rgba(125, 211, 252, 0.24)',
-    seamGlow: 'rgba(15, 118, 110, 0.22)',
-  },
-  noir: {
-    shellTitle: 'Outreach Log Noir',
-    shellSubtitle: 'An editorial control room for deliberate, high-signal outreach.',
-    heroEyebrow: 'Reach Noir',
-    heroTitle: 'A cinematic workspace for the moments when every message matters.',
-    heroCopy:
-      'Dark surfaces, soft bloom, and focused contrast make this version feel more like a premium studio than a spreadsheet.',
-    heroBadgePrimary: 'Editorial dark mode',
-    heroBadgeSecondary: 'Quiet focus',
-    modeLabel: 'Noir',
-    screenBackground: '#08070E',
-    heroBackground: '#16111F',
-    heroBorderColor: '#392B49',
-    heroEyebrowColor: '#F9C8D9',
-    heroTitleColor: '#FFF6F8',
-    heroCopyColor: '#D7CBDF',
-    heroBadgeBackground: 'rgba(249, 200, 217, 0.14)',
-    heroBadgeText: '#FFD7E5',
-    heroBadgeSecondaryBackground: 'rgba(245, 158, 11, 0.14)',
-    heroBadgeSecondaryText: '#FCD9A5',
-    heroOrbOne: 'rgba(244, 114, 182, 0.18)',
-    heroOrbTwo: 'rgba(251, 191, 36, 0.14)',
-    heroGlow: 'rgba(244, 114, 182, 0.28)',
-    noticeBackground: '#2A171B',
-    noticeBorder: '#8B3A53',
-    noticeTitle: '#FFD0DA',
-    noticeCopy: '#F7B7C7',
-    warningBackground: '#2D1515',
-    warningBorder: '#7F1D1D',
-    warningText: '#FECACA',
-    statCardBackground: '#16111F',
-    statCardBorder: '#392B49',
-    statLabelColor: '#C7B8D5',
-    statValueColor: '#FFD4DF',
-    statHintColor: '#A999B8',
-    cardBackground: '#120E19',
-    cardBorder: '#34283F',
-    cardShadow: '0px 18px 42px rgba(0, 0, 0, 0.42)',
-    cardTitle: '#FFF6F8',
-    cardCopy: '#C9BED4',
-    fieldLabel: '#E7DDEA',
-    inputBackground: '#1A1423',
-    inputBorder: '#473553',
-    inputText: '#FFF8FB',
-    inputPlaceholder: '#9F90AE',
-    primaryBackground: '#F472B6',
-    primaryPressed: '#EC4899',
-    primaryText: '#2A1320',
-    secondaryBackground: '#221A2E',
-    secondaryBorder: '#5B476D',
-    secondaryPressed: '#2B213A',
-    secondaryText: '#FFD4DF',
-    inlineLink: '#F9A8D4',
-    modalOverlay: 'rgba(4, 3, 8, 0.72)',
-    modalBackground: '#120E19',
-    modalBorder: '#34283F',
-    modalHeaderBorder: '#34283F',
-    modalTitle: '#FFF6F8',
-    modalCopy: '#C9BED4',
-    closeChipBackground: '#221A2E',
-    closeChipText: '#FFD4DF',
-    heroRadius: 32,
-    panelRadius: 32,
-    controlRadius: 18,
-    chipRadius: 999,
-    showHeroOrbs: true,
-    showHeroSeams: false,
-    seamColor: 'rgba(244, 114, 182, 0.24)',
-    seamGlow: 'rgba(244, 114, 182, 0.2)',
-  },
-  momentum: {
-    shellTitle: 'Outreach Log Momentum',
-    shellSubtitle: 'Bright, energetic, and built to keep your outreach streak moving.',
-    heroEyebrow: 'Momentum',
-    heroTitle: 'Make every outreach session feel like the first five minutes of a great sprint.',
-    heroCopy:
-      'Warm highlights, confident contrast, and high-clarity actions turn the logging flow into something that feels alive instead of administrative.',
-    heroBadgePrimary: 'High-energy workflow',
-    heroBadgeSecondary: 'Action-first layout',
-    modeLabel: 'Momentum',
-    screenBackground: '#FFF4EC',
-    heroBackground: '#FFF1D8',
-    heroBorderColor: '#F9A03F',
-    heroEyebrowColor: '#9A3412',
-    heroTitleColor: '#7C2D12',
-    heroCopyColor: '#9A3412',
-    heroBadgeBackground: '#FFE3B3',
-    heroBadgeText: '#9A3412',
-    heroBadgeSecondaryBackground: '#DCFCE7',
-    heroBadgeSecondaryText: '#166534',
-    heroOrbOne: 'rgba(249, 115, 22, 0.18)',
-    heroOrbTwo: 'rgba(34, 197, 94, 0.18)',
-    heroGlow: 'rgba(249, 115, 22, 0.18)',
-    noticeBackground: '#FFF7ED',
-    noticeBorder: '#FDBA74',
-    noticeTitle: '#9A3412',
-    noticeCopy: '#7C2D12',
-    warningBackground: '#FFF1F2',
-    warningBorder: '#FDA4AF',
-    warningText: '#9F1239',
-    statCardBackground: '#FFFFFF',
-    statCardBorder: '#F9D4B5',
-    statLabelColor: '#9A3412',
-    statValueColor: '#EA580C',
-    statHintColor: '#7C2D12',
-    cardBackground: '#FFFDF8',
-    cardBorder: '#F6D2AE',
-    cardShadow: '0px 16px 34px rgba(249, 115, 22, 0.12)',
-    cardTitle: '#7C2D12',
-    cardCopy: '#9A3412',
-    fieldLabel: '#7C2D12',
-    inputBackground: '#FFFFFF',
-    inputBorder: '#F3C89A',
-    inputText: '#7C2D12',
-    inputPlaceholder: '#C08457',
-    primaryBackground: '#F97316',
-    primaryPressed: '#EA580C',
-    primaryText: '#FFF7ED',
-    secondaryBackground: '#ECFCCB',
-    secondaryBorder: '#84CC16',
-    secondaryPressed: '#D9F99D',
-    secondaryText: '#3F6212',
-    inlineLink: '#EA580C',
-    modalOverlay: 'rgba(124, 45, 18, 0.28)',
-    modalBackground: '#FFFDF8',
-    modalBorder: '#F6D2AE',
-    modalHeaderBorder: '#F4DFC9',
-    modalTitle: '#7C2D12',
-    modalCopy: '#9A3412',
-    closeChipBackground: '#FFEDD5',
-    closeChipText: '#C2410C',
-    heroRadius: 32,
-    panelRadius: 32,
-    controlRadius: 18,
-    chipRadius: 999,
-    showHeroOrbs: true,
-    showHeroSeams: false,
-    seamColor: 'rgba(249, 115, 22, 0.22)',
-    seamGlow: 'rgba(249, 115, 22, 0.18)',
-  },
-  glass: {
-    shellTitle: 'Outreach Log Glass',
-    shellSubtitle: 'An ambient glassmorphism take on the same working outreach flow.',
-    heroEyebrow: 'Aetheris',
-    heroTitle: 'A cool, luminous surface that makes the workflow feel calmer and more premium.',
-    heroCopy:
-      'Layered transparency, subtle glow, and spacious cards create a softer interface without losing any of the actual logging functionality.',
-    heroBadgePrimary: 'Ambient glass',
-    heroBadgeSecondary: 'Soft glow depth',
-    modeLabel: 'Glass',
-    screenBackground: '#E7F7FB',
-    heroBackground: 'rgba(16, 42, 67, 0.78)',
-    heroBorderColor: 'rgba(125, 211, 252, 0.36)',
-    heroEyebrowColor: '#B6F3FF',
-    heroTitleColor: '#F1FCFF',
-    heroCopyColor: '#D6F6FF',
-    heroBadgeBackground: 'rgba(125, 211, 252, 0.16)',
-    heroBadgeText: '#D8F8FF',
-    heroBadgeSecondaryBackground: 'rgba(196, 181, 253, 0.18)',
-    heroBadgeSecondaryText: '#ECE7FF',
-    heroOrbOne: 'rgba(34, 211, 238, 0.2)',
-    heroOrbTwo: 'rgba(129, 140, 248, 0.16)',
-    heroGlow: 'rgba(34, 211, 238, 0.24)',
-    noticeBackground: 'rgba(255, 247, 237, 0.9)',
-    noticeBorder: '#FDBA74',
-    noticeTitle: '#9A3412',
-    noticeCopy: '#7C2D12',
-    warningBackground: 'rgba(254, 242, 242, 0.92)',
-    warningBorder: '#FCA5A5',
-    warningText: '#991B1B',
-    statCardBackground: 'rgba(255, 255, 255, 0.72)',
-    statCardBorder: 'rgba(125, 211, 252, 0.48)',
-    statLabelColor: '#155E75',
-    statValueColor: '#0F766E',
-    statHintColor: '#0F4C5C',
-    cardBackground: 'rgba(255, 255, 255, 0.76)',
-    cardBorder: 'rgba(125, 211, 252, 0.44)',
-    cardShadow: '0px 18px 36px rgba(15, 118, 110, 0.14)',
-    cardTitle: '#12314A',
-    cardCopy: '#365B71',
-    fieldLabel: '#12314A',
-    inputBackground: 'rgba(255, 255, 255, 0.9)',
-    inputBorder: 'rgba(125, 211, 252, 0.52)',
-    inputText: '#12314A',
-    inputPlaceholder: '#6B93A9',
-    primaryBackground: '#0891B2',
-    primaryPressed: '#0E7490',
-    primaryText: '#ECFEFF',
-    secondaryBackground: 'rgba(236, 254, 255, 0.85)',
-    secondaryBorder: '#67E8F9',
-    secondaryPressed: 'rgba(207, 250, 254, 0.92)',
-    secondaryText: '#155E75',
-    inlineLink: '#0891B2',
-    modalOverlay: 'rgba(15, 23, 42, 0.42)',
-    modalBackground: 'rgba(255, 255, 255, 0.88)',
-    modalBorder: 'rgba(125, 211, 252, 0.44)',
-    modalHeaderBorder: 'rgba(125, 211, 252, 0.28)',
-    modalTitle: '#12314A',
-    modalCopy: '#365B71',
-    closeChipBackground: 'rgba(236, 254, 255, 0.92)',
-    closeChipText: '#0E7490',
-    heroRadius: 32,
-    panelRadius: 32,
-    controlRadius: 18,
-    chipRadius: 999,
-    showHeroOrbs: true,
-    showHeroSeams: false,
-    seamColor: 'rgba(125, 211, 252, 0.34)',
-    seamGlow: 'rgba(34, 211, 238, 0.2)',
-  },
-  precision: {
-    shellTitle: 'Outreach Log Precision',
-    shellSubtitle: 'Smoked-glass noir with sharper sci-fi control surfaces.',
-    heroEyebrow: 'Precision Shadow',
-    heroTitle: 'A smoked-glass control panel for deliberate, high-signal outreach.',
-    heroCopy:
-      'Sharper borders, controlled cyan edge glow, and cold layered panels push this version into a more premium sci-fi lane without getting noisy.',
-    heroBadgePrimary: 'Smoked-glass noir',
-    heroBadgeSecondary: 'Cyan edge light',
-    modeLabel: 'Precision',
-    screenBackground: '#0B0D10',
-    heroBackground: 'rgba(19, 19, 20, 0.94)',
-    heroBorderColor: 'rgba(0, 216, 255, 0.24)',
-    heroEyebrowColor: '#AEEBFF',
-    heroTitleColor: '#EEF8FF',
-    heroCopyColor: '#B8C7D4',
-    heroBadgeBackground: 'rgba(14, 20, 24, 0.9)',
-    heroBadgeText: '#AEEBFF',
-    heroBadgeSecondaryBackground: 'rgba(44, 49, 79, 0.88)',
-    heroBadgeSecondaryText: '#DFE2FF',
-    heroOrbOne: 'transparent',
-    heroOrbTwo: 'transparent',
-    heroGlow: 'transparent',
-    noticeBackground: 'rgba(40, 21, 17, 0.82)',
-    noticeBorder: 'rgba(254, 186, 41, 0.36)',
-    noticeTitle: '#FFDCA7',
-    noticeCopy: '#F8C56C',
-    warningBackground: 'rgba(42, 16, 18, 0.84)',
-    warningBorder: 'rgba(252, 165, 165, 0.26)',
-    warningText: '#FFD0D0',
-    statCardBackground: 'rgba(28, 27, 28, 0.82)',
-    statCardBorder: 'rgba(60, 73, 77, 0.9)',
-    statLabelColor: '#8FA2AF',
-    statValueColor: '#AEEBFF',
-    statHintColor: '#A3B1BB',
-    cardBackground: 'rgba(28, 27, 28, 0.78)',
-    cardBorder: 'rgba(0, 216, 255, 0.22)',
-    cardShadow: '0px 24px 44px rgba(0, 0, 0, 0.44)',
-    cardTitle: '#EEF8FF',
-    cardCopy: '#A3B1BB',
-    fieldLabel: '#DDE7EE',
-    inputBackground: 'rgba(14, 14, 15, 0.92)',
-    inputBorder: 'rgba(60, 73, 77, 0.95)',
-    inputText: '#EEF8FF',
-    inputPlaceholder: '#738592',
-    primaryBackground: '#00D8FF',
-    primaryPressed: '#14C5E8',
-    primaryText: '#032A33',
-    secondaryBackground: 'rgba(19, 19, 20, 0.8)',
-    secondaryBorder: 'rgba(133, 147, 152, 0.34)',
-    secondaryPressed: 'rgba(32, 31, 32, 0.92)',
-    secondaryText: '#AEEBFF',
-    inlineLink: '#AEEBFF',
-    modalOverlay: 'rgba(5, 7, 10, 0.78)',
-    modalBackground: 'rgba(26, 26, 27, 0.92)',
-    modalBorder: 'rgba(0, 216, 255, 0.18)',
-    modalHeaderBorder: 'rgba(60, 73, 77, 0.85)',
-    modalTitle: '#EEF8FF',
-    modalCopy: '#A3B1BB',
-    closeChipBackground: 'rgba(19, 19, 20, 0.96)',
-    closeChipText: '#AEEBFF',
-    heroRadius: 12,
-    panelRadius: 12,
-    controlRadius: 10,
-    chipRadius: 8,
-    showHeroOrbs: false,
-    showHeroSeams: true,
-    seamColor: 'rgba(0, 216, 255, 0.72)',
-    seamGlow: 'rgba(155, 168, 255, 0.22)',
-  },
-};
-
-type OutreachLogScreenProps = {
-  variant?: OutreachLogVariant;
-};
-
-export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProps) {
-  const theme = themes[variant];
-  const isCoreVariant = variant === 'default';
-  const isPrecisionVariant = variant === 'precision';
+export function OutreachLogScreen() {
+  const navigation = useNavigation();
+  const { theme } = useReachTheme();
+  const workflow = theme.workflow;
+  const themedGlassEnhancement = workflow.glass ? glassEnhancement : null;
+  const themedHeaderEnhancement = workflow.glass ? headerEnhancement : null;
+  const [now, setNow] = useState(() => new Date());
+  const [selectedPersonLabel, setSelectedPersonLabel] = useState('');
+  const [peopleSearchTerm, setPeopleSearchTerm] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('');
-  const [commType, setCommType] = useState('');
+  const [selectedProtocol, setSelectedProtocol] = useState<string>('');
   const [message, setMessage] = useState('');
-  const [isPersonModalVisible, setIsPersonModalVisible] = useState(false);
+  const [isPeopleOpen, setIsPeopleOpen] = useState(false);
+  const [isProtocolOpen, setIsProtocolOpen] = useState(false);
+  const [isAddPersonVisible, setIsAddPersonVisible] = useState(false);
   const [isCompanyStepVisible, setIsCompanyStepVisible] = useState(false);
+  const [isCompanyOptionsOpen, setIsCompanyOptionsOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [personForm, setPersonForm] = useState(initialPersonForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successTranslateY = useRef(new Animated.Value(-12)).current;
 
-  const {
-    companies,
-    isLoading: companiesLoading,
-    error: companiesError,
-    refresh: refreshCompanies,
-  } = useCompanies();
-  const {
-    people,
-    isLoading: peopleLoading,
-    error: peopleError,
-    refresh: refreshPeople,
-  } = usePeople();
+  const { people, refresh: refreshPeople } = usePeople();
+  const { companies, refresh: refreshCompanies } = useCompanies();
+  const { count, isLoading, refresh: refreshDailyCount } = useDailyUniqueOutreachCount(now);
   const { createCompany, isSubmitting: isCreatingCompany } = useCreateCompany();
   const { createPerson, isSubmitting: isCreatingPerson } = useCreatePerson();
-  const { createOutreachLog, isSubmitting: isCreatingLog } = useCreateOutreachLog();
-  const { width, height } = useWindowDimensions();
-  const slider = useRef(new Animated.Value(0)).current;
+  const { createOutreachLog, isSubmitting } = useCreateOutreachLog();
 
-  useEffect(() => {
-    Animated.spring(slider, {
-      damping: 20,
-      mass: 0.9,
-      stiffness: 220,
-      toValue: isCompanyStepVisible ? 1 : 0,
-      useNativeDriver: false,
-    }).start();
-  }, [isCompanyStepVisible, slider]);
+  useFocusEffect(
+    useCallback(() => {
+      setNow(new Date());
+    }, [])
+  );
 
-  const modalInset = Math.max(12, Math.min(24, width * 0.05));
-  const pageWidth = Math.min(width - modalInset * 2, 560);
-  const availableModalHeight = height - modalInset * 2;
-  const modalHeight = availableModalHeight * 0.8;
-  const translateX = slider.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -pageWidth],
-  });
+  const filteredPeople = useMemo(() => {
+    const query = peopleSearchTerm.trim().toLowerCase();
 
-  const personOptions = [
-    {
-      label: 'Choose a person',
-      value: '',
-    },
-    ...people.map((person) => ({
-      label: person.reach_companies?.name
-        ? `${person.full_name} • ${person.reach_companies.name}`
-        : person.full_name,
-      value: person.id,
-    })),
-  ];
+    if (!query) {
+      return people;
+    }
 
-  const companyOptions = [
-    {
-      label: 'No company yet',
-      value: '',
-    },
-    ...companies.map((company) => ({
-      label: company.name,
-      value: company.id,
-      description: company.location ?? undefined,
-    })),
-  ];
+    return people
+      .filter((person) => {
+        const companyName = person.reach_companies?.name ?? '';
+        return `${person.full_name} ${companyName}`.toLowerCase().includes(query);
+      })
+      .slice(0, 50);
+  }, [people, peopleSearchTerm]);
 
-  const closePersonModal = () => {
-    setIsPersonModalVisible(false);
-    setIsCompanyStepVisible(false);
-    setPersonForm(initialPersonForm);
-    setCompanyForm(initialCompanyForm);
+  const selectedProtocolLabel =
+    communicationProtocols.find((protocol) => protocol.value === selectedProtocol)?.display ??
+    'Select type';
+
+  const companyOptions = useMemo(
+    () => [
+      { id: '', name: 'None' },
+      ...companies.map((company) => ({
+        id: company.id,
+        name: company.location ? `${company.name} • ${company.location}` : company.name,
+      })),
+    ],
+    [companies]
+  );
+  const selectedCompanyLabel =
+    personForm.companyId
+      ? companyOptions.find((company) => company.id === personForm.companyId)?.name ?? 'Select company'
+      : 'Select company';
+
+  const progressWidth = `${Math.min(1, count / DAILY_GOAL) * 100}%` as `${number}%`;
+  const themedInputStyle = {
+    backgroundColor: workflow.fieldBackground,
+    borderColor: workflow.fieldBorder,
+    borderRadius: workflow.radius,
+    color: workflow.inputText,
+  };
+  const themedFieldStyle = {
+    backgroundColor: workflow.fieldBackground,
+    borderColor: workflow.fieldBorder,
+    borderRadius: workflow.radius,
+    boxShadow: workflow.panelShadow,
+  };
+  const themedPrimaryButtonStyle = {
+    backgroundColor: workflow.primaryBackground,
+    borderColor: workflow.primaryBorder,
+    borderRadius: workflow.radius,
+    boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
+  };
+  const themedModalStyle = {
+    backgroundColor: workflow.modalBackground,
+    borderColor: workflow.modalBorder,
+    borderRadius: workflow.radius,
+  };
+  const themedMenuStyle = {
+    backgroundColor: workflow.menuBackground,
+    borderColor: workflow.menuBorder,
+    borderRadius: workflow.radius,
+    boxShadow: workflow.panelShadow,
   };
 
-  const handleCreateLog = async () => {
+  const handleSelectPerson = (personId: string, label: string) => {
+    setSelectedPersonId(personId);
+    setSelectedPersonLabel(personId ? label : '');
+    setPeopleSearchTerm('');
+    setIsPeopleOpen(false);
+  };
+
+  const showSuccessToast = useCallback(
+    (message: string) => {
+      successOpacity.stopAnimation();
+      successTranslateY.stopAnimation();
+      successOpacity.setValue(0);
+      successTranslateY.setValue(-12);
+      setSuccessMessage(message);
+
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(successOpacity, {
+            duration: 180,
+            toValue: 1,
+            useNativeDriver: true,
+          }),
+          Animated.timing(successTranslateY, {
+            duration: 180,
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.delay(1200),
+        Animated.parallel([
+          Animated.timing(successOpacity, {
+            duration: 240,
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+          Animated.timing(successTranslateY, {
+            duration: 240,
+            toValue: -12,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        setSuccessMessage('');
+      });
+    },
+    [successOpacity, successTranslateY]
+  );
+
+  const handleSave = async () => {
     const problems: string[] = [];
 
     if (!selectedPersonId) {
-      problems.push('Choose a person.');
+      problems.push('Choose a target entity.');
     }
 
-    if (!commType) {
-      problems.push('Choose a communication type.');
+    if (!selectedProtocol) {
+      problems.push('Choose a communication vector.');
     }
 
     if (!message.trim()) {
-      problems.push('Enter the message that was sent.');
+      problems.push('Log details of the interaction.');
     }
 
     if (problems.length > 0) {
-      Alert.alert('Unable to save outreach log', problems.map((problem) => `• ${problem}`).join('\n'));
+      Alert.alert('Unable to record outreach', problems.map((problem) => `• ${problem}`).join('\n'));
       return;
     }
 
     try {
       await createOutreachLog({
         personId: selectedPersonId,
-        commType,
+        commType: selectedProtocol,
         message,
       });
+      await refreshDailyCount();
 
-      const personName =
-        people.find((person) => person.id === selectedPersonId)?.full_name ?? 'Contact';
-      const loggedType = commType.trim();
       setSelectedPersonId('');
-      setCommType('');
+      setSelectedPersonLabel('');
+      setPeopleSearchTerm('');
+      setSelectedProtocol('');
       setMessage('');
-      Alert.alert('Outreach logged', `Saved a ${loggedType} entry for ${personName}.`);
+      setIsProtocolOpen(false);
+      showSuccessToast('Outreach recorded');
     } catch (error) {
-      Alert.alert('Unable to save log', error instanceof Error ? error.message : 'Try again.');
+      Alert.alert(
+        'Unable to record outreach',
+        error instanceof Error ? error.message : 'Try again.'
+      );
     }
+  };
+
+  const openPeoplePicker = () => {
+    setPeopleSearchTerm('');
+    setIsPeopleOpen(true);
+  };
+
+  const closePeoplePicker = () => {
+    setPeopleSearchTerm('');
+    setIsPeopleOpen(false);
+  };
+
+  const closeAddPerson = () => {
+    setIsAddPersonVisible(false);
+    setIsCompanyStepVisible(false);
+    setIsCompanyOptionsOpen(false);
+    setPersonForm(initialPersonForm);
+    setCompanyForm(initialCompanyForm);
   };
 
   const handleCreatePerson = async () => {
     try {
       const newPerson = await createPerson(personForm);
       await refreshPeople();
-      setSelectedPersonId(newPerson.id);
-      closePersonModal();
-      Alert.alert('Person added', `${newPerson.full_name} is ready for logging.`);
+      handleSelectPerson(newPerson.id, newPerson.full_name);
+      closeAddPerson();
+      showSuccessToast('Person added');
     } catch (error) {
-      Alert.alert('Unable to add person', error instanceof Error ? error.message : 'Try again.');
+      Alert.alert(
+        'Unable to add person',
+        error instanceof Error ? error.message : 'Try again.'
+      );
     }
   };
 
@@ -624,9 +308,12 @@ export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProp
       }));
       setCompanyForm(initialCompanyForm);
       setIsCompanyStepVisible(false);
-      Alert.alert('Company added', `${newCompany.name} is now available in the company dropdown.`);
+      showSuccessToast('Company added');
     } catch (error) {
-      Alert.alert('Unable to add company', error instanceof Error ? error.message : 'Try again.');
+      Alert.alert(
+        'Unable to add company',
+        error instanceof Error ? error.message : 'Try again.'
+      );
     }
   };
 
@@ -638,1069 +325,1143 @@ export function OutreachLogScreen({ variant = 'default' }: OutreachLogScreenProp
     setCompanyForm((current) => ({ ...current, ...fields }));
   };
 
-  const isCompanyJsonDragging = useCompanyJsonDropImport(
-    isPersonModalVisible && isCompanyStepVisible,
-    importCompanyForm,
-  );
+  const updatePersonForm = (field: keyof typeof initialPersonForm, value: string) => {
+    setPersonForm((current) => ({ ...current, [field]: value }));
+  };
 
-  const dataMessage = [peopleError, companiesError].filter(Boolean).join('\n');
-  const stats = [
-    {
-      label: 'People ready',
-      value: peopleLoading ? '...' : String(people.length),
-      hint: 'Contacts available to log now',
-    },
-    {
-      label: 'Companies',
-      value: companiesLoading ? '...' : String(companies.length),
-      hint: 'Organizations attached to your network',
-    },
-    {
-      label: 'Mode',
-      value: theme.modeLabel,
-      hint: 'Style concept generated from Stitch exploration',
-    },
-  ];
-  const formNotices =
-    isCoreVariant && !isSupabaseConfigured
-      ? [
-          {
-            title: 'Supabase setup needed',
-            body:
-              'Add `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` to your Expo environment before saving logs.',
-            kind: 'notice' as const,
-          },
-        ]
-      : [];
-  const formWarnings =
-    isCoreVariant && dataMessage
-      ? [
-          {
-            body: dataMessage,
-            kind: 'warning' as const,
-          },
-        ]
-      : [];
+  const importPersonForm = (fields: Partial<typeof initialPersonForm>) => {
+    setPersonForm((current) => ({ ...current, ...fields }));
+  };
 
   return (
-    <DrawerScreenShell title={theme.shellTitle} subtitle={theme.shellSubtitle}>
-      <View style={[styles.flex, styles.screenRoot, { backgroundColor: theme.screenBackground }]}>
-        {isPrecisionVariant && Platform.OS === 'web' ? (
-          <View pointerEvents="none" style={styles.precisionGradientLayer as any} />
-        ) : null}
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          {!isCoreVariant ? (
-            <>
-              <View
-                style={[
-                  styles.hero,
-                  {
-                    backgroundColor: theme.heroBackground,
-                    borderColor: theme.heroBorderColor,
-                    borderRadius: theme.heroRadius,
-                  },
-                ]}>
-                {theme.showHeroOrbs ? (
-                  <>
-                    <View
-                      style={[
-                        styles.heroOrb,
-                        styles.heroOrbLarge,
-                        { backgroundColor: theme.heroOrbOne },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.heroOrb,
-                        styles.heroOrbSmall,
-                        { backgroundColor: theme.heroOrbTwo },
-                      ]}
-                    />
-                    <View style={[styles.heroGlow, { backgroundColor: theme.heroGlow }]} />
-                  </>
-                ) : null}
-                {theme.showHeroSeams ? (
-                  <>
-                    <View style={[styles.heroSeamTop, { backgroundColor: theme.seamColor }]} />
-                    <View style={[styles.heroSeamSide, { backgroundColor: theme.seamGlow }]} />
-                    <View style={[styles.heroSeamBottom, { backgroundColor: theme.seamColor }]} />
-                  </>
-                ) : null}
+    <DrawerSceneWrapper>
+      <SafeAreaView
+        style={[
+          styles.safeArea,
+          { backgroundColor: workflow.background },
+        ]}
+        edges={['top']}>
+        <View style={styles.root}>
+          {workflow.backgroundGradient ? (
+            <LinearGradient
+              pointerEvents="none"
+              colors={workflow.backgroundGradient.colors}
+              locations={workflow.backgroundGradient.locations}
+              start={workflow.backgroundGradient.start}
+              end={workflow.backgroundGradient.end}
+              style={styles.workflowGradient}
+            />
+          ) : null}
 
-                <Text style={[styles.eyebrow, { color: theme.heroEyebrowColor }]}>
-                  {theme.heroEyebrow}
-                </Text>
-                <Text style={[styles.title, { color: theme.heroTitleColor }]}>{theme.heroTitle}</Text>
-                <Text style={[styles.subtitle, { color: theme.heroCopyColor }]}>{theme.heroCopy}</Text>
-
-                <View style={styles.heroBadgeRow}>
-                  <View
-                    style={[
-                      styles.heroBadge,
-                      {
-                        backgroundColor: theme.heroBadgeBackground,
-                        borderColor: theme.heroBorderColor,
-                        borderRadius: theme.chipRadius,
-                      },
-                    ]}>
-                    <Text style={[styles.heroBadgeText, { color: theme.heroBadgeText }]}>
-                      {theme.heroBadgePrimary}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.heroBadge,
-                      {
-                        backgroundColor: theme.heroBadgeSecondaryBackground,
-                        borderColor: theme.heroBorderColor,
-                        borderRadius: theme.chipRadius,
-                      },
-                    ]}>
-                    <Text style={[styles.heroBadgeText, { color: theme.heroBadgeSecondaryText }]}>
-                      {theme.heroBadgeSecondary}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.statGrid}>
-                {stats.map((stat) => (
-                  <View
-                    key={stat.label}
-                    style={[
-                      styles.statCard,
-                      {
-                        backgroundColor: theme.statCardBackground,
-                        borderColor: theme.statCardBorder,
-                        borderRadius: theme.panelRadius,
-                        boxShadow: theme.cardShadow,
-                      },
-                    ]}>
-                    <Text style={[styles.statLabel, { color: theme.statLabelColor }]}>
-                      {stat.label}
-                    </Text>
-                    <Text style={[styles.statValue, { color: theme.statValueColor }]}>
-                      {stat.value}
-                    </Text>
-                    <Text style={[styles.statHint, { color: theme.statHintColor }]}>
-                      {stat.hint}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              {!isSupabaseConfigured ? (
-                <View
-                  style={[
-                    styles.noticeCard,
-                    {
-                      backgroundColor: theme.noticeBackground,
-                      borderColor: theme.noticeBorder,
-                      borderRadius: theme.panelRadius,
-                    },
-                  ]}>
-                  <Text style={[styles.noticeTitle, { color: theme.noticeTitle }]}>
-                    Supabase setup needed
-                  </Text>
-                  <Text style={[styles.noticeCopy, { color: theme.noticeCopy }]}>
-                    Add `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` to your Expo
-                    environment before saving logs.
-                  </Text>
-                </View>
-              ) : null}
-
-              {dataMessage ? (
-                <View
-                  style={[
-                    styles.inlineWarning,
-                    {
-                      backgroundColor: theme.warningBackground,
-                      borderColor: theme.warningBorder,
-                      borderRadius: theme.panelRadius,
-                    },
-                  ]}>
-                  <Text style={[styles.inlineWarningText, { color: theme.warningText }]}>
-                    {dataMessage}
-                  </Text>
-                </View>
-              ) : null}
-            </>
+          {isPeopleOpen ? (
+            <Pressable onPress={closePeoplePicker} style={styles.dismissLayer} />
           ) : null}
 
           <View
             style={[
-              styles.card,
+              styles.header,
               {
-                backgroundColor: theme.cardBackground,
-                borderColor: theme.cardBorder,
-                borderRadius: theme.panelRadius,
-                boxShadow: theme.cardShadow,
+                backgroundColor: workflow.headerBackground,
+                borderBottomColor: workflow.headerBorder,
+                boxShadow: workflow.headerShadow,
               },
+              themedHeaderEnhancement as any,
             ]}>
-            <View style={styles.cardHeader}>
-              <View>
-                <Text style={[styles.cardTitle, { color: theme.cardTitle }]}>New outreach log</Text>
-                <Text style={[styles.cardCopy, { color: theme.cardCopy }]}>
-                  Entries are saved with the current timestamp.
-                </Text>
-              </View>
-              {(peopleLoading || companiesLoading) && isSupabaseConfigured ? (
-                <ActivityIndicator color={theme.primaryBackground} />
-              ) : null}
-            </View>
+            <Pressable
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={styles.headerLeft}>
+              <MaterialIcons
+                name="terminal"
+                size={20}
+                color={workflow.accent}
+                style={[styles.headerTerminal, { textShadowColor: workflow.accentSoft }]}
+              />
+              <Text style={[styles.headerTitle, { color: workflow.text }]}>OUTREACH_LOG</Text>
+            </Pressable>
 
-            <View style={styles.fieldStack}>
-              {formNotices.map((notice) => (
+            <Pressable style={styles.headerRight}>
+              <MaterialIcons name="settings-input-component" size={22} color={workflow.accent} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: workflow.panelBackground,
+                  borderLeftColor: workflow.accent,
+                  borderRadius: workflow.radius,
+                  boxShadow: workflow.panelShadow,
+                },
+                themedGlassEnhancement as any,
+              ]}>
+              <View style={styles.heroLabelWrap}>
+                <Text style={[styles.heroLabel, { color: workflow.accent }]}>Target_Metrics</Text>
+              </View>
+              <Text style={[styles.heroValue, { color: workflow.text }]}>
+                {isLoading ? '... / 10' : `${count} / 10`}
+              </Text>
+              <Text style={[styles.heroCaption, { color: workflow.accent }]}>
+                Contacts Logged Today
+              </Text>
+              <View style={[styles.progressTrack, { backgroundColor: workflow.divider }]}>
                 <View
-                  key={notice.title}
                   style={[
-                    styles.noticeCard,
-                    styles.embeddedMessage,
+                    styles.progressFill,
                     {
-                      backgroundColor: theme.noticeBackground,
-                      borderColor: theme.noticeBorder,
-                      borderRadius: theme.panelRadius,
-                    },
-                  ]}>
-                  <Text style={[styles.noticeTitle, { color: theme.noticeTitle }]}>
-                    {notice.title}
-                  </Text>
-                  <Text style={[styles.noticeCopy, { color: theme.noticeCopy }]}>{notice.body}</Text>
-                </View>
-              ))}
-
-              {formWarnings.map((warning) => (
-                <View
-                  key={warning.body}
-                  style={[
-                    styles.inlineWarning,
-                    styles.embeddedMessage,
-                    {
-                      backgroundColor: theme.warningBackground,
-                      borderColor: theme.warningBorder,
-                      borderRadius: theme.panelRadius,
-                    },
-                  ]}>
-                  <Text style={[styles.inlineWarningText, { color: theme.warningText }]}>
-                    {warning.body}
-                  </Text>
-                </View>
-              ))}
-
-              <View style={styles.personRow}>
-                <View style={styles.personSelect}>
-                  <SelectField
-                    label="Person"
-                    options={personOptions}
-                    placeholder={
-                      peopleLoading ? 'Loading people...' : 'Choose a person from your list'
-                    }
-                    selectedValue={selectedPersonId}
-                    onValueChange={setSelectedPersonId}
-                    disabled={!isSupabaseConfigured || peopleLoading}
-                    emptyMessage="Create your first person to start logging outreach."
-                    variant={variant}
-                  />
-                </View>
-
-                <Pressable
-                  disabled={!isSupabaseConfigured}
-                  onPress={() => setIsPersonModalVisible(true)}
-                  style={({ pressed }) => [
-                    styles.secondaryAction,
-                    {
-                      backgroundColor: theme.secondaryBackground,
-                      borderColor: theme.secondaryBorder,
-                      borderRadius: theme.controlRadius,
-                    },
-                    !isSupabaseConfigured && styles.disabledButton,
-                    pressed && isSupabaseConfigured && { backgroundColor: theme.secondaryPressed },
-                  ]}>
-                  <Text style={[styles.secondaryActionText, { color: theme.secondaryText }]}>
-                    Add person
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.field}>
-                <SelectField
-                  label="Communication type"
-                  options={communicationTypeOptions}
-                  placeholder="Choose a communication type"
-                  selectedValue={commType}
-                  onValueChange={setCommType}
-                  disabled={!isSupabaseConfigured}
-                  emptyMessage="Add communication types to this list to choose one here."
-                  variant={variant}
-                />
-              </View>
-
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.fieldLabel }]}>Message sent</Text>
-                <TextInput
-                  multiline
-                  onChangeText={setMessage}
-                  placeholder="Paste or write the message you sent..."
-                  placeholderTextColor={theme.inputPlaceholder}
-                  style={[
-                    styles.input,
-                    styles.textArea,
-                    {
-                      backgroundColor: theme.inputBackground,
-                      borderColor: theme.inputBorder,
-                      borderRadius: theme.controlRadius,
-                      color: theme.inputText,
+                      backgroundColor: workflow.accent,
+                      boxShadow: `0px 0px 15px ${workflow.accentSoft}`,
+                      width: progressWidth,
                     },
                   ]}
-                  textAlignVertical="top"
-                  value={message}
                 />
+              </View>
+            </View>
+
+            <View style={styles.formStack}>
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>Target Entity</Text>
+                <View style={styles.dropdownWrap}>
+                  <View style={styles.targetRow}>
+                    <Pressable
+                      onPress={openPeoplePicker}
+                      style={[
+                        styles.searchField,
+                        styles.targetField,
+                        {
+                          backgroundColor: workflow.fieldBackground,
+                          borderColor: workflow.fieldBorder,
+                          borderRadius: workflow.radius,
+                          boxShadow: workflow.panelShadow,
+                        },
+                        themedGlassEnhancement as any,
+                      ]}>
+                      <MaterialIcons name="search" size={18} color={workflow.accentMuted} />
+                      <Text
+                        style={[
+                          styles.searchInputDisplay,
+                          { color: selectedPersonLabel ? workflow.inputText : workflow.placeholder },
+                        ]}>
+                        {selectedPersonLabel || 'Search contacts'}
+                      </Text>
+                      <MaterialIcons name="arrow-drop-down" size={22} color={workflow.accent} />
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => {
+                        setIsProtocolOpen(false);
+                        setIsAddPersonVisible(true);
+                      }}
+                      style={[
+                        styles.addPersonButton,
+                        {
+                          backgroundColor: workflow.primaryBackground,
+                          borderColor: workflow.primaryBorder,
+                          borderRadius: workflow.radius,
+                        },
+                      ]}>
+                      <MaterialIcons name="person-add-alt-1" size={16} color={workflow.primaryText} />
+                      <Text style={[styles.addPersonButtonText, { color: workflow.primaryText }]}>
+                        Add person
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>
+                  Communication Vector
+                </Text>
+                <View style={styles.dropdownWrap}>
+                  <Pressable
+                    onPress={() => setIsProtocolOpen(true)}
+                    style={[
+                      styles.vectorField,
+                      {
+                        backgroundColor: workflow.fieldBackground,
+                        borderColor: workflow.fieldBorder,
+                        borderRadius: workflow.radius,
+                        boxShadow: workflow.panelShadow,
+                      },
+                      themedGlassEnhancement as any,
+                    ]}>
+                    <View style={styles.vectorFieldCopy}>
+                      <MaterialIcons name="hub" size={18} color={workflow.accent} />
+                      <Text
+                        style={[
+                          styles.vectorFieldText,
+                          { color: selectedProtocol ? workflow.inputText : workflow.placeholder },
+                        ]}>
+                        {selectedProtocol ? selectedProtocolLabel : 'Select type'}
+                      </Text>
+                    </View>
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={22}
+                      color={workflow.accent}
+                      style={styles.vectorChevronOpen}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <View style={styles.telemetryAccent}>
+                  <View
+                    style={[
+                      styles.telemetryLineLong,
+                      { backgroundColor: workflow.accent, boxShadow: `0px 0px 8px ${workflow.accentSoft}` },
+                    ]}
+                  />
+                  <View style={[styles.telemetryLineShort, { backgroundColor: workflow.accentMuted }]} />
+                </View>
+                <Text style={[styles.sectionLabel, { color: workflow.accent }]}>
+                  Telemetry &amp; Insights
+                </Text>
+                <View
+                  style={[
+                    styles.messageShell,
+                    {
+                      backgroundColor: workflow.fieldBackground,
+                      borderColor: workflow.fieldBorder,
+                      borderRadius: workflow.radius,
+                      boxShadow: workflow.panelShadow,
+                    },
+                    themedGlassEnhancement as any,
+                  ]}>
+                  <TextInput
+                    multiline
+                    onChangeText={setMessage}
+                    placeholder="Log details of the interaction..."
+                    placeholderTextColor={workflow.placeholder}
+                    style={[styles.messageInput, { color: workflow.inputText }]}
+                    textAlignVertical="top"
+                    value={message}
+                  />
+                </View>
               </View>
 
               <Pressable
-                disabled={!isSupabaseConfigured || isCreatingLog}
-                onPress={handleCreateLog}
+                disabled={isSubmitting}
+                onPress={handleSave}
                 style={({ pressed }) => [
-                  styles.primaryAction,
+                  styles.recordButton,
                   {
-                    backgroundColor: theme.primaryBackground,
-                    borderRadius: theme.controlRadius,
+                    backgroundColor: pressed && !isSubmitting
+                      ? workflow.primaryPressed
+                      : workflow.primaryBackground,
+                    borderColor: workflow.primaryBorder,
+                    borderRadius: workflow.radius,
+                    boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
                   },
-                  (!isSupabaseConfigured || isCreatingLog) && styles.disabledButton,
-                  pressed &&
-                    isSupabaseConfigured &&
-                    !isCreatingLog && { backgroundColor: theme.primaryPressed },
+                  isSubmitting && styles.recordButtonDisabled,
                 ]}>
-                <Text style={[styles.primaryActionText, { color: theme.primaryText }]}>
-                  {isCreatingLog ? 'Saving...' : 'Save outreach log'}
+                <MaterialIcons name="upload" size={18} color={workflow.primaryText} />
+                <Text style={[styles.recordButtonText, { color: workflow.primaryText }]}>
+                  {isSubmitting ? 'Recording...' : 'Record Outreach'}
                 </Text>
               </Pressable>
             </View>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.bottomNav,
+              {
+                backgroundColor: workflow.headerBackground,
+                borderTopColor: workflow.headerBorder,
+                boxShadow: workflow.headerShadow,
+              },
+              themedHeaderEnhancement as any,
+            ]}>
+            <Pressable onPress={() => router.push('/outreach-log')} style={styles.navItem}>
+              <MaterialIcons name="home" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>HOME</Text>
+            </Pressable>
+
+            <View style={[styles.navItem, { backgroundColor: workflow.selectedBackground }]}>
+              <MaterialIcons
+                name="dns"
+                size={22}
+                color={workflow.accent}
+                style={[styles.navIconGlow, { textShadowColor: workflow.accentSoft }]}
+              />
+              <Text style={[styles.navLabel, { color: workflow.accent }]}>LOGS</Text>
+            </View>
+
+            <Pressable
+              onPress={() => router.push('/initiative-dashboard')}
+              style={styles.navItem}>
+              <MaterialIcons name="query-stats" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>TELEMETRY</Text>
+            </Pressable>
+
+            <View style={styles.navItem}>
+              <MaterialIcons name="hub" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>COMMS</Text>
+            </View>
+
+            <View style={styles.navItem}>
+              <MaterialIcons name="memory" size={22} color={workflow.accentMuted} />
+              <Text style={[styles.navLabel, { color: workflow.accentMuted }]}>SYSTEM</Text>
+            </View>
           </View>
-        </ScrollView>
-      </View>
+        </View>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={isPersonModalVisible}
-        onRequestClose={closePersonModal}>
-        <View
-          style={[
-            styles.modalOverlay,
-            {
-                    backgroundColor: theme.modalOverlay,
-              paddingHorizontal: modalInset,
-              paddingTop: modalInset,
-              paddingBottom: modalInset,
-            },
-          ]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={closePersonModal} />
-          <KeyboardAvoidingView
-            behavior={Platform.select({ ios: 'padding', default: undefined })}
-            style={styles.modalWrap}>
-            <ScrollView
-              style={styles.modalScroller}
-              contentContainerStyle={styles.modalScrollShell}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
-              <View
-                style={[
-                  styles.modalCard,
-                  {
-                    width: pageWidth,
-                    height: modalHeight,
-                    backgroundColor: theme.modalBackground,
-                    borderColor: theme.modalBorder,
-                    borderRadius: theme.panelRadius,
-                  },
-                ]}>
-                {isCompanyJsonDragging ? (
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.dropOverlay,
+        <Modal animationType="fade" transparent visible={isAddPersonVisible} onRequestClose={closeAddPerson}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
+            <Pressable onPress={closeAddPerson} style={styles.modalDismiss} />
+            <View
+              style={[
+                styles.modalCard,
+                {
+                  backgroundColor: workflow.modalBackground,
+                  borderColor: workflow.modalBorder,
+                  borderRadius: workflow.radius,
+                },
+                themedGlassEnhancement as any,
+              ]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Add Person</Text>
+                <Pressable onPress={closeAddPerson} style={styles.modalCloseButton}>
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                contentContainerStyle={styles.modalContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {isCompanyStepVisible ? (
+                  <AddCompanyPanel
+                    cancelButtonStyle={[
+                      styles.recordButton,
                       {
-                        backgroundColor: `${theme.inlineLink}33`,
-                        borderColor: theme.inlineLink,
-                        borderRadius: theme.panelRadius,
+                        backgroundColor: workflow.menuBackground,
+                        borderColor: workflow.menuBorder,
+                        borderRadius: workflow.radius,
+                        boxShadow: 'none',
                       },
-                    ]}>
-                    <Text style={[styles.dropOverlayText, { color: theme.inlineLink }]}>
-                      Drop file here
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View
-                  style={[
-                    styles.modalHeader,
-                    {
-                      borderBottomColor: theme.modalHeaderBorder,
-                    },
-                  ]}>
-                  <View style={styles.modalHeaderCopy}>
-                    <Text style={[styles.modalTitle, { color: theme.modalTitle }]}>
-                      {isCompanyStepVisible ? 'Add company' : 'Add person'}
-                    </Text>
-                    <Text style={[styles.modalCopy, { color: theme.modalCopy }]}>
-                      {isCompanyStepVisible
-                        ? 'Create a company, then drop right back into the person form.'
-                        : 'Capture a contact and attach them to a company if you have one.'}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={closePersonModal}
-                    style={[
-                      styles.closeChip,
-                      { backgroundColor: theme.closeChipBackground },
-                      { borderRadius: theme.chipRadius },
-                    ]}>
-                    <Text style={[styles.closeChipText, { color: theme.closeChipText }]}>
-                      Close
-                    </Text>
-                  </Pressable>
-                </View>
-
-                <View style={[styles.sliderViewport, { width: pageWidth }]}>
-                  <Animated.View
-                    style={[
-                      styles.sliderTrack,
+                    ]}
+                    cancelTextStyle={[styles.recordButtonText, { color: workflow.accent }]}
+                    disabledButtonStyle={styles.recordButtonDisabled}
+                    dropOverlayColor={workflow.accent}
+                    dropOverlayRadius={workflow.radius}
+                    enabled={isAddPersonVisible && isCompanyStepVisible}
+                    fieldStackStyle={styles.modalContentFields}
+                    inputStyle={[
+                      styles.modalInput,
                       {
-                        transform: [{ translateX }],
-                        width: pageWidth * 2,
+                        backgroundColor: workflow.fieldBackground,
+                        borderColor: workflow.fieldBorder,
+                        borderRadius: workflow.radius,
+                        color: workflow.inputText,
                       },
-                    ]}>
-                    <View style={[styles.modalPage, { width: pageWidth }]}>
-                      <ScrollView
-                        style={styles.modalScroll}
-                        contentContainerStyle={styles.modalScrollContent}
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator={false}>
-                        <View style={styles.fieldStack}>
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Full name</Text>
-                            <TextInput
-                              autoCapitalize="words"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, fullName: value }))
-                              }
-                              placeholder="Jane Smith"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.fullName}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Title</Text>
-                            <TextInput
-                              autoCapitalize="words"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, title: value }))
-                              }
-                              placeholder="Head of Growth"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.title}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Location</Text>
-                            <TextInput
-                              autoCapitalize="words"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, location: value }))
-                              }
-                              placeholder="Bogota, Colombia"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.location}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Email</Text>
-                            <TextInput
-                              autoCapitalize="none"
-                              keyboardType="email-address"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, email: value }))
-                              }
-                              placeholder="jane@client.com"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.email}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>Phone</Text>
-                            <TextInput
-                              keyboardType="phone-pad"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, phone: value }))
-                              }
-                              placeholder="+1 555 123 4567"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.phone}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <Text style={[styles.label, { color: theme.fieldLabel }]}>LinkedIn</Text>
-                            <TextInput
-                              autoCapitalize="none"
-                              onChangeText={(value) =>
-                                setPersonForm((current) => ({ ...current, linkedin: value }))
-                              }
-                              placeholder="linkedin.com/in/jane-smith"
-                              placeholderTextColor={theme.inputPlaceholder}
-                              style={[
-                                styles.input,
-                                {
-                                  backgroundColor: theme.inputBackground,
-                                  borderColor: theme.inputBorder,
-                                  borderRadius: theme.controlRadius,
-                                  color: theme.inputText,
-                                },
-                              ]}
-                              value={personForm.linkedin}
-                            />
-                          </View>
-
-                          <View style={styles.field}>
-                            <View style={styles.inlineLabelRow}>
-                              <Text style={[styles.label, { color: theme.fieldLabel }]}>Company</Text>
-                              <Pressable onPress={() => setIsCompanyStepVisible(true)}>
-                                <Text style={[styles.inlineLink, { color: theme.inlineLink }]}>
-                                  Add company
-                                </Text>
-                              </Pressable>
-                            </View>
-                            <SelectField
-                              label="Select company"
-                              options={companyOptions}
-                              placeholder={
-                                companiesLoading ? 'Loading companies...' : 'Choose a company'
-                              }
-                              selectedValue={personForm.companyId}
-                              onValueChange={(value) =>
-                                setPersonForm((current) => ({ ...current, companyId: value }))
-                              }
-                              disabled={companiesLoading}
-                              emptyMessage="Create a company from this modal if you need a new one."
-                              variant={variant}
-                            />
-                          </View>
-                        </View>
-                      </ScrollView>
-
-                      <View
-                        style={[
-                          styles.modalFooter,
-                          {
-                            backgroundColor: theme.modalBackground,
-                            borderTopColor: theme.modalHeaderBorder,
-                          },
-                        ]}>
-                        <Pressable
-                          disabled={isCreatingPerson}
-                          onPress={handleCreatePerson}
-                          style={({ pressed }) => [
-                            styles.primaryAction,
-                            {
-                              backgroundColor: theme.primaryBackground,
-                              borderRadius: theme.controlRadius,
-                            },
-                            isCreatingPerson && styles.disabledButton,
-                            pressed && !isCreatingPerson && { backgroundColor: theme.primaryPressed },
-                          ]}>
-                          <Text style={[styles.primaryActionText, { color: theme.primaryText }]}>
-                            {isCreatingPerson ? 'Saving...' : 'Save person'}
+                    ]}
+                    isSaving={isCreatingCompany}
+                    labelColor={workflow.accent}
+                    onCancel={() => setIsCompanyStepVisible(false)}
+                    onChangeField={updateCompanyForm}
+                    onImportFields={importCompanyForm}
+                    onSave={handleCreateCompany}
+                    placeholderColor={workflow.placeholder}
+                    saveButtonStyle={[
+                      styles.recordButton,
+                      {
+                        backgroundColor: workflow.primaryBackground,
+                        borderColor: workflow.primaryBorder,
+                        borderRadius: workflow.radius,
+                        boxShadow: `0px 0px 25px ${workflow.accentSoft}`,
+                      },
+                    ]}
+                    saveTextStyle={[styles.recordButtonText, { color: workflow.primaryText }]}
+                    titleColor={workflow.text}
+                    value={companyForm}
+                  />
+                ) : (
+                  <AddPersonPanel
+                    companyControl={
+                      <View style={styles.modalField}>
+                        <View style={styles.companyLabelRow}>
+                          <Text style={[styles.sectionLabel, { color: workflow.accent }]}>
+                            Company
                           </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    <View style={[styles.modalPage, { width: pageWidth }]}>
-                      <ScrollView
-                        style={styles.modalScroll}
-                        contentContainerStyle={styles.modalScrollContent}
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator={false}>
-                        <View style={styles.fieldStack}>
-                          <Pressable
-                            onPress={() => setIsCompanyStepVisible(false)}
-                            style={styles.backLinkButton}>
-                            <Text style={[styles.backLinkText, { color: theme.inlineLink }]}>
-                              Back to person
+                          <Pressable onPress={() => setIsCompanyStepVisible(true)}>
+                            <Text style={[styles.companyActionText, { color: workflow.accent }]}>
+                              Add company
                             </Text>
                           </Pressable>
-
-                          <CompanyFormFields
-                            inputStyle={[
-                              styles.input,
-                              {
-                                backgroundColor: theme.inputBackground,
-                                borderColor: theme.inputBorder,
-                                borderRadius: theme.controlRadius,
-                                color: theme.inputText,
-                              },
-                            ]}
-                            labelColor={theme.fieldLabel}
-                            onChangeField={updateCompanyForm}
-                            placeholderColor={theme.inputPlaceholder}
-                            value={companyForm}
-                          />
                         </View>
-                      </ScrollView>
 
-                      <View
-                        style={[
-                          styles.modalFooter,
-                          {
-                            backgroundColor: theme.modalBackground,
-                            borderTopColor: theme.modalHeaderBorder,
-                          },
-                        ]}>
+                        <View style={styles.dropdownWrap}>
+                          <Pressable
+                            onPress={() => setIsCompanyOptionsOpen(true)}
+                            style={[
+                              styles.vectorField,
+                              themedFieldStyle,
+                              themedGlassEnhancement as any,
+                            ]}>
+                            <View style={styles.vectorFieldCopy}>
+                              <MaterialIcons name="apartment" size={18} color={workflow.accent} />
+                              <Text style={[styles.vectorFieldText, { color: workflow.inputText }]}>
+                                {selectedCompanyLabel}
+                              </Text>
+                            </View>
+                            <MaterialIcons
+                              name="chevron-right"
+                              size={22}
+                              color={workflow.accent}
+                              style={styles.vectorChevronOpen}
+                            />
+                          </Pressable>
+                        </View>
+                      </View>
+                    }
+                    disabledButtonStyle={styles.recordButtonDisabled}
+                    dropOverlayColor={workflow.accent}
+                    dropOverlayRadius={workflow.radius}
+                    enabled={isAddPersonVisible && !isCompanyStepVisible}
+                    fieldStyle={styles.modalField}
+                    inputStyle={[styles.modalInput, themedInputStyle]}
+                    isSaving={isCreatingPerson}
+                    labelColor={workflow.accent}
+                    onChangeField={updatePersonForm}
+                    onImportFields={importPersonForm}
+                    onSave={handleCreatePerson}
+                    placeholderColor={workflow.placeholder}
+                    saveButtonStyle={[
+                      styles.recordButton,
+                      {
+                        ...themedPrimaryButtonStyle,
+                        backgroundColor: workflow.primaryBackground,
+                      },
+                    ]}
+                    saveIconColor={workflow.primaryText}
+                    saveTextStyle={[styles.recordButtonText, { color: workflow.primaryText }]}
+                    value={personForm}
+                  />
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal animationType="none" transparent visible={Boolean(successMessage)}>
+          <View pointerEvents="none" style={styles.successToastOverlay}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.successToast,
+                {
+                  backgroundColor: workflow.toastBackground,
+                  borderColor: workflow.toastBorder,
+                  borderRadius: workflow.radius,
+                  opacity: successOpacity,
+                  transform: [{ translateY: successTranslateY }],
+                },
+              ]}>
+              <Text style={styles.successToastText}>{successMessage}</Text>
+            </Animated.View>
+          </View>
+        </Modal>
+
+        <Modal animationType="fade" transparent visible={isPeopleOpen} onRequestClose={closePeoplePicker}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
+            <Pressable onPress={closePeoplePicker} style={styles.modalDismiss} />
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Target Entity</Text>
+                <Pressable onPress={closePeoplePicker} style={styles.modalCloseButton}>
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
+                </Pressable>
+              </View>
+
+              <View style={styles.peoplePickerContent}>
+                <View style={[styles.searchField, themedFieldStyle, themedGlassEnhancement as any]}>
+                  <MaterialIcons name="search" size={18} color={workflow.accentMuted} />
+                  <TextInput
+                    autoFocus
+                    onChangeText={setPeopleSearchTerm}
+                    placeholder="Search contacts"
+                    placeholderTextColor={workflow.placeholder}
+                    style={[styles.searchInput, { color: workflow.inputText }]}
+                    value={peopleSearchTerm}
+                  />
+                </View>
+
+                <ScrollView
+                  style={[
+                    styles.peopleMenu,
+                    styles.peopleMenuModal,
+                    themedMenuStyle,
+                    themedGlassEnhancement as any,
+                  ]}
+                  contentContainerStyle={styles.peopleMenuContent}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}>
+                  {!peopleSearchTerm.trim() ? (
+                    <Pressable
+                      onPress={() => handleSelectPerson('', '')}
+                      style={[
+                        styles.peopleItem,
+                        styles.peopleItemBorder,
+                        { borderBottomColor: workflow.divider },
+                      ]}>
+                      <Text style={[styles.peopleItemText, { color: workflow.accent }]}>None</Text>
+                    </Pressable>
+                  ) : null}
+
+                  {filteredPeople.length === 0 ? (
+                    <Text style={[styles.emptyState, { color: workflow.accent }]}>
+                      No matching contacts found.
+                    </Text>
+                  ) : (
+                    filteredPeople.map((person, index) => {
+                      const label = person.reach_companies?.name
+                        ? `${person.full_name} • ${person.reach_companies.name}`
+                        : person.full_name;
+
+                      return (
                         <Pressable
-                          disabled={isCreatingCompany}
-                          onPress={handleCreateCompany}
-                          style={({ pressed }) => [
-                            styles.primaryAction,
-                            {
-                              backgroundColor: theme.primaryBackground,
-                              borderRadius: theme.controlRadius,
-                            },
-                            isCreatingCompany && styles.disabledButton,
-                            pressed && !isCreatingCompany && { backgroundColor: theme.primaryPressed },
+                          key={person.id}
+                          onPress={() => handleSelectPerson(person.id, label)}
+                          style={[
+                            styles.peopleItem,
+                            index < filteredPeople.length - 1 && [
+                              styles.peopleItemBorder,
+                              { borderBottomColor: workflow.divider },
+                            ],
                           ]}>
-                          <Text style={[styles.primaryActionText, { color: theme.primaryText }]}>
-                            {isCreatingCompany ? 'Saving...' : 'Save company'}
+                          <Text style={[styles.peopleItemText, { color: workflow.accent }]}>
+                            {label}
                           </Text>
                         </Pressable>
-                      </View>
-                    </View>
-                  </Animated.View>
-                </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
               </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-    </DrawerScreenShell>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal animationType="fade" transparent visible={isProtocolOpen} onRequestClose={() => setIsProtocolOpen(false)}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
+            <Pressable onPress={() => setIsProtocolOpen(false)} style={styles.modalDismiss} />
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Communication Type</Text>
+                <Pressable onPress={() => setIsProtocolOpen(false)} style={styles.modalCloseButton}>
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={[
+                  styles.peopleMenu,
+                  styles.peopleMenuModal,
+                  themedMenuStyle,
+                  themedGlassEnhancement as any,
+                ]}
+                contentContainerStyle={styles.peopleMenuContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}>
+                {communicationProtocols.map((protocol, index) => {
+                  const isSelected = protocol.value === selectedProtocol;
+
+                  return (
+                    <Pressable
+                      key={protocol.display}
+                      onPress={() => {
+                        setSelectedProtocol(protocol.value);
+                        setIsProtocolOpen(false);
+                      }}
+                      style={[
+                        styles.protocolItem,
+                        index < communicationProtocols.length - 1 && [
+                          styles.peopleItemBorder,
+                          { borderBottomColor: workflow.divider },
+                        ],
+                        isSelected && { backgroundColor: workflow.selectedBackground },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.protocolItemText,
+                          { color: isSelected ? workflow.text : workflow.accent },
+                        ]}>
+                        {protocol.display}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={isCompanyOptionsOpen}
+          onRequestClose={() => setIsCompanyOptionsOpen(false)}>
+          <View style={[styles.modalOverlay, { backgroundColor: workflow.modalOverlay }]}>
+            <Pressable onPress={() => setIsCompanyOptionsOpen(false)} style={styles.modalDismiss} />
+            <View style={[styles.modalCard, themedModalStyle, themedGlassEnhancement as any]}>
+              <View style={[styles.modalHeader, { borderBottomColor: workflow.modalHeaderBorder }]}>
+                <Text style={[styles.modalTitle, { color: workflow.text }]}>Company</Text>
+                <Pressable
+                  onPress={() => setIsCompanyOptionsOpen(false)}
+                  style={styles.modalCloseButton}>
+                  <MaterialIcons name="close" size={18} color={workflow.accent} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                style={[
+                  styles.peopleMenu,
+                  styles.peopleMenuModal,
+                  themedMenuStyle,
+                  themedGlassEnhancement as any,
+                ]}
+                contentContainerStyle={styles.peopleMenuContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}>
+                {companyOptions.map((company, index) => {
+                  const isSelected = company.id === personForm.companyId;
+
+                  return (
+                    <Pressable
+                      key={company.id || company.name}
+                      onPress={() => {
+                        setPersonForm((current) => ({
+                          ...current,
+                          companyId: company.id,
+                        }));
+                        setIsCompanyOptionsOpen(false);
+                      }}
+                      style={[
+                        styles.companyMenuItem,
+                        index < companyOptions.length - 1 && [
+                          styles.peopleItemBorder,
+                          { borderBottomColor: workflow.divider },
+                        ],
+                        isSelected && { backgroundColor: workflow.selectedBackground },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.companyMenuItemText,
+                          { color: isSelected ? workflow.text : workflow.accent },
+                        ]}>
+                        {company.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </DrawerSceneWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  safeArea: {
+    backgroundColor: '#131314',
     flex: 1,
   },
-  screenRoot: {
-    position: 'relative',
+  root: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  workflowGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  successToastOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successToast: {
+    backgroundColor: 'rgba(93, 0, 23, 0.72)',
+    borderColor: 'rgba(229, 115, 115, 0.4)',
+    borderRadius: 18,
+    borderWidth: 1,
+    boxShadow: '0px 10px 28px rgba(0, 0, 0, 0.35)',
+    elevation: 12,
+    maxWidth: 280,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    position: 'absolute',
+    zIndex: 80,
+  },
+  successToastText: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  dismissLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+  header: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderBottomColor: 'rgba(163, 0, 41, 0.3)',
+    borderBottomWidth: 1,
+    boxShadow: '0px 4px 20px rgba(0,0,0,0.5)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  headerLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerTerminal: {
+    textShadowColor: 'rgba(163,0,41,0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2.1,
+    textTransform: 'uppercase',
+  },
+  headerRight: {
+    padding: 8,
   },
   content: {
-    gap: 20,
-    padding: 20,
-    paddingBottom: 36,
+    alignSelf: 'center',
+    gap: 32,
+    maxWidth: 780,
+    padding: 24,
+    paddingBottom: 120,
+    width: '100%',
   },
-  precisionGradientLayer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0B0D10',
-    backgroundImage: 'linear-gradient(180deg, #1A2430 0%, #0D1117 42%, #0E1821 78%, #13202A 100%)',
-  },
-  hero: {
-    borderRadius: 32,
-    borderWidth: 1,
-    gap: 10,
-    overflow: 'hidden',
+  heroCard: {
+    backgroundColor: 'rgba(10, 10, 12, 0.4)',
+    borderLeftColor: '#A30029',
+    borderLeftWidth: 2,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
     padding: 24,
     position: 'relative',
   },
-  heroOrb: {
-    borderRadius: 999,
+  heroLabelWrap: {
+    opacity: 0.6,
     position: 'absolute',
+    right: 8,
+    top: 0,
   },
-  heroOrbLarge: {
-    height: 220,
-    right: -48,
-    top: -52,
-    width: 220,
+  heroLabel: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 10,
+    letterSpacing: 2,
+    padding: 8,
+    textTransform: 'uppercase',
   },
-  heroOrbSmall: {
-    bottom: -28,
-    height: 140,
-    left: -20,
-    width: 140,
+  heroValue: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 40,
+    fontWeight: '700',
+    letterSpacing: -1,
+    marginBottom: 8,
   },
-  heroGlow: {
-    borderRadius: 999,
-    height: 150,
-    left: '28%',
-    opacity: 0.7,
-    position: 'absolute',
-    top: 56,
-    width: 150,
+  heroCaption: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
   },
-  eyebrow: {
-    fontSize: 13,
+  progressTrack: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    height: 2,
+    marginTop: 20,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    backgroundColor: '#A30029',
+    boxShadow: '0px 0px 15px rgba(163,0,41,0.8)',
+    height: '100%',
+  },
+  formStack: {
+    gap: 32,
+  },
+  section: {
+    gap: 12,
+  },
+  sectionLabel: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  dropdownWrap: {
+    position: 'relative',
+  },
+  targetRow: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  targetField: {
+    flex: 1,
+  },
+  searchField: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 10, 12, 0.4)',
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  searchInput: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  searchInputDisplay: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 14,
+  },
+  searchPlaceholder: {
+    color: '#FFFFFF',
+  },
+  addPersonButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(93,0,23,0.9)',
+    borderColor: 'rgba(163,0,41,0.6)',
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minWidth: 132,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  addPersonButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  peopleMenu: {
+    backgroundColor: 'rgba(10, 10, 12, 0.92)',
+    borderColor: 'rgba(163,0,41,0.3)',
+    borderWidth: 1,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
+    maxHeight: 260,
+  },
+  peopleMenuModal: {
+    maxHeight: 360,
+  },
+  peopleMenuContent: {
+    paddingVertical: 2,
+  },
+  peopleItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  peopleItemBorder: {
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomWidth: 1,
+  },
+  peopleItemText: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    lineHeight: 36,
-    maxWidth: 620,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 23,
-    maxWidth: 700,
-  },
-  heroBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 6,
-  },
-  heroBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  heroSeamTop: {
-    height: 1,
-    left: 18,
-    opacity: 0.9,
-    position: 'absolute',
-    right: 18,
-    top: 14,
-  },
-  heroSeamSide: {
-    bottom: 22,
-    opacity: 0.65,
-    position: 'absolute',
-    right: 14,
-    top: 22,
-    width: 1,
-  },
-  heroSeamBottom: {
-    bottom: 14,
-    height: 1,
-    left: 36,
-    opacity: 0.9,
-    position: 'absolute',
-    right: 36,
-  },
-  heroBadgeText: {
+  emptyState: {
+    color: '#E57373',
     fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    opacity: 0.7,
+    padding: 16,
   },
-  statGrid: {
+  vectorField: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 10, 12, 0.4)',
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  vectorFieldCopy: {
+    alignItems: 'center',
+    flexDirection: 'row',
     gap: 12,
   },
-  statCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    flexGrow: 1,
-    gap: 8,
-    minWidth: 180,
-    padding: 18,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
+  vectorFieldText: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 10,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  statValue: {
-    fontSize: 30,
-    fontWeight: '800',
-    lineHeight: 34,
+  vectorChevronOpen: {
+    transform: [{ rotate: '90deg' }],
   },
-  statHint: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  noticeCard: {
-    borderRadius: 24,
+  protocolMenu: {
+    backgroundColor: 'rgba(10, 10, 12, 0.92)',
+    borderColor: 'rgba(163,0,41,0.3)',
     borderWidth: 1,
-    gap: 8,
-    padding: 18,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
+    left: 0,
+    marginTop: 8,
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    zIndex: 50,
   },
-  noticeTitle: {
-    fontSize: 16,
+  protocolItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  protocolItemText: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
-  noticeCopy: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  inlineWarning: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 16,
-  },
-  embeddedMessage: {
-    marginBottom: 2,
-  },
-  inlineWarningText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  card: {
-    borderRadius: 32,
-    borderWidth: 1,
-    gap: 24,
-    padding: 22,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  cardCopy: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  fieldStack: {
-    gap: 18,
-  },
-  personRow: {
+  telemetryAccent: {
     alignItems: 'flex-end',
+    gap: 4,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  telemetryLineLong: {
+    backgroundColor: '#A30029',
+    boxShadow: '0px 0px 8px rgba(163,0,41,0.6)',
+    height: 2,
+    width: 24,
+  },
+  telemetryLineShort: {
+    backgroundColor: '#E57373',
+    height: 2,
+    width: 12,
+  },
+  messageShell: {
+    backgroundColor: 'rgba(10, 10, 12, 0.4)',
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.3)',
+  },
+  messageInput: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 22,
+    minHeight: 140,
+    padding: 20,
+  },
+  recordButton: {
+    alignItems: 'center',
+    backgroundColor: '#5D0017',
+    borderColor: 'rgba(163,0,41,0.6)',
+    borderWidth: 1,
+    boxShadow: '0px 0px 25px rgba(163,0,41,0.4)',
     flexDirection: 'row',
     gap: 12,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    paddingVertical: 20,
   },
-  personSelect: {
-    flex: 1,
+  recordButtonPressed: {
+    backgroundColor: '#74001D',
   },
-  field: {
-    gap: 8,
+  recordButtonDisabled: {
+    opacity: 0.6,
   },
-  label: {
+  recordButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
     fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '700',
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
   },
-  inlineLabelRow: {
-    alignItems: 'center',
+  bottomNav: {
+    alignItems: 'stretch',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderTopColor: 'rgba(163,0,41,0.4)',
+    borderTopWidth: 1,
+    boxShadow: '0px -5px 25px rgba(0,0,0,0.6)',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    height: 64,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
   },
-  inlineLink: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  input: {
-    borderRadius: 18,
-    borderWidth: 1,
-    fontSize: 15,
-    minHeight: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  textArea: {
-    minHeight: 136,
-    paddingTop: 16,
-  },
-  primaryAction: {
+  navItem: {
     alignItems: 'center',
-    borderRadius: 18,
+    flex: 1,
     justifyContent: 'center',
-    minHeight: 56,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
   },
-  primaryActionText: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+  navItemActive: {
+    backgroundColor: 'rgba(163,0,41,0.1)',
   },
-  secondaryAction: {
-    alignItems: 'center',
-    borderRadius: 18,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  navIconGlow: {
+    textShadowColor: 'rgba(163,0,41,0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
-  secondaryActionText: {
-    fontSize: 14,
+  navLabel: {
+    color: 'rgba(229,115,115,0.7)',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 9,
     fontWeight: '700',
+    letterSpacing: 1.5,
+    marginTop: 4,
+    textTransform: 'uppercase',
   },
-  disabledButton: {
-    opacity: 0.55,
+  navLabelActive: {
+    color: '#E57373',
   },
   modalOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.72)',
     flex: 1,
     justifyContent: 'center',
-    padding: 16,
+    padding: 24,
   },
-  modalWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    width: '100%',
-  },
-  modalScroller: {
-    flex: 1,
-    width: '100%',
-  },
-  modalScrollShell: {
-    alignItems: 'center',
-    flexGrow: 1,
-    justifyContent: 'center',
+  modalDismiss: {
+    ...StyleSheet.absoluteFillObject,
   },
   modalCard: {
     alignSelf: 'center',
-    borderRadius: 30,
+    backgroundColor: 'rgba(10, 10, 12, 0.92)',
+    borderColor: 'rgba(163,0,41,0.35)',
     borderWidth: 1,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  dropOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  dropOverlayText: {
-    fontSize: 22,
-    fontWeight: '900',
+    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.4)',
+    maxHeight: '82%',
+    maxWidth: 560,
+    width: '100%',
+    zIndex: 5,
   },
   modalHeader: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    borderBottomColor: 'rgba(163,0,41,0.25)',
     borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: 12,
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  modalHeaderCopy: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
+    paddingVertical: 16,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
-  modalCopy: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-    maxWidth: 280,
+  modalCloseButton: {
+    padding: 6,
   },
-  closeChip: {
+  modalContent: {
+    gap: 18,
+    padding: 20,
+  },
+  modalContentFields: {
+    gap: 18,
+  },
+  peoplePickerContent: {
+    gap: 16,
+    padding: 20,
+  },
+  modalField: {
+    gap: 10,
+  },
+  backButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderRadius: 999,
-    flexShrink: 0,
-    justifyContent: 'center',
-    minHeight: 38,
-    paddingHorizontal: 14,
-  },
-  closeChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sliderViewport: {
-    flex: 1,
-    minHeight: 0,
-    overflow: 'hidden',
-  },
-  sliderTrack: {
-    flex: 1,
     flexDirection: 'row',
+    gap: 8,
   },
-  modalPage: {
-    flex: 1,
-    minHeight: 0,
-  },
-  modalScroll: {
-    flex: 1,
-    minHeight: 0,
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    padding: 20,
-    paddingBottom: 20,
-  },
-  modalFooter: {
-    borderTopWidth: 1,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  backLinkButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 2,
-  },
-  backLinkText: {
-    fontSize: 13,
+  backButtonText: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  modalInput: {
+    backgroundColor: 'rgba(10, 10, 12, 0.7)',
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  companyLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  companyActionText: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  companyMenuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  companyMenuItemSelected: {
+    backgroundColor: 'rgba(163,0,41,0.18)',
+  },
+  companyMenuItemText: {
+    color: '#E57373',
+    fontFamily: Platform.select({ web: 'Space Grotesk', default: undefined }),
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  companyMenuItemTextSelected: {
+    color: '#FFFFFF',
   },
 });

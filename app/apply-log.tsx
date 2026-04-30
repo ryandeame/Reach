@@ -12,14 +12,13 @@ import {
   View,
 } from 'react-native';
 
-import { CompanyFormFields } from '@/components/company-form-fields';
+import { AddCompanyPanel } from '@/components/add-company-panel';
 import { DrawerScreenShell } from '@/components/drawer-screen-shell';
 import { useReachTheme } from '@/components/reach-theme-provider';
 import { SelectField } from '@/components/select-field';
 import { useCompanies } from '@/hooks/use-companies';
 import { useCreateCompany } from '@/hooks/use-create-company';
 import { useCreateJobApplication } from '@/hooks/use-create-job-application';
-import { useCompanyJsonDropImport } from '@/hooks/use-company-json-drop-import';
 import { useDailyJobApplicationCount } from '@/hooks/use-daily-job-application-count';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -121,8 +120,6 @@ export default function ApplyLogScreen() {
       ...fields,
     }));
   };
-
-  const isCompanyJsonDragging = useCompanyJsonDropImport(isCompanyModalVisible, importCompanyForm);
 
   const closeCompanyModal = () => {
     setIsCompanyModalVisible(false);
@@ -469,79 +466,48 @@ export default function ApplyLogScreen() {
                 borderColor: dashboard.cardBorder,
               },
             ]}>
-            {isCompanyJsonDragging ? (
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.dropOverlay,
-                  {
-                    backgroundColor: `${workflow.accent}33`,
-                    borderColor: workflow.accent,
-                  },
-                ]}>
-                <Text style={[styles.dropOverlayText, { color: workflow.accent }]}>
-                  Drop file here
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.formHeader}>
-              <Text style={[styles.formTitle, { color: dashboardValueColor }]}>Add company</Text>
-              <Text style={[styles.formCopy, { color: dashboard.body }]}>
-                Create a company and select it for this application.
-              </Text>
-            </View>
-
-            <View style={styles.fieldStack}>
-              <CompanyFormFields
-                inputStyle={[
-                  styles.input,
-                  {
-                    backgroundColor: workflow.fieldBackground,
-                    borderColor: workflow.fieldBorder,
-                    borderRadius: workflow.radius,
-                    color: workflow.inputText,
-                  },
-                ]}
-                labelColor={workflow.text}
-                onChangeField={updateCompanyForm}
-                placeholderColor={workflow.placeholder}
-                value={companyForm}
-              />
-
-              <View style={styles.modalActions}>
-                <Pressable
-                  onPress={closeCompanyModal}
-                  style={[
-                    styles.modalAction,
-                    styles.secondaryAction,
-                    {
-                      backgroundColor: workflow.menuBackground,
-                      borderColor: workflow.menuBorder,
-                      borderRadius: workflow.radius,
-                    },
-                  ]}>
-                  <Text style={[styles.secondaryActionText, { color: workflow.accent }]}>Cancel</Text>
-                </Pressable>
-
-                <Pressable
-                  disabled={isCreatingCompany}
-                  onPress={handleCreateCompany}
-                  style={[
-                    styles.modalAction,
-                    styles.primaryAction,
-                    {
-                      backgroundColor: workflow.primaryBackground,
-                      borderRadius: workflow.radius,
-                    },
-                    isCreatingCompany && styles.disabledButton,
-                  ]}>
-                  <Text style={[styles.primaryActionText, { color: workflow.primaryText }]}>
-                    {isCreatingCompany ? 'Saving...' : 'Save company'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            <AddCompanyPanel
+              cancelButtonStyle={[
+                styles.secondaryAction,
+                {
+                  backgroundColor: workflow.menuBackground,
+                  borderColor: workflow.menuBorder,
+                  borderRadius: workflow.radius,
+                },
+              ]}
+              cancelTextStyle={[styles.secondaryActionText, { color: workflow.accent }]}
+              disabledButtonStyle={styles.disabledButton}
+              dropOverlayColor={workflow.accent}
+              dropOverlayRadius={28}
+              enabled={isCompanyModalVisible}
+              fieldStackStyle={styles.fieldStack}
+              inputStyle={[
+                styles.input,
+                {
+                  backgroundColor: workflow.fieldBackground,
+                  borderColor: workflow.fieldBorder,
+                  borderRadius: workflow.radius,
+                  color: workflow.inputText,
+                },
+              ]}
+              isSaving={isCreatingCompany}
+              labelColor={workflow.text}
+              onCancel={closeCompanyModal}
+              onChangeField={updateCompanyForm}
+              onImportFields={importCompanyForm}
+              onSave={handleCreateCompany}
+              placeholderColor={workflow.placeholder}
+              saveButtonStyle={[
+                styles.primaryAction,
+                {
+                  backgroundColor: workflow.primaryBackground,
+                  borderRadius: workflow.radius,
+                },
+              ]}
+              saveTextStyle={[styles.primaryActionText, { color: workflow.primaryText }]}
+              titleColor={dashboardValueColor}
+              value={companyForm}
+            />
           </View>
         </View>
       </Modal>
@@ -709,35 +675,18 @@ const styles = StyleSheet.create({
   modalOverlay: {
     backgroundColor: 'rgba(15, 23, 42, 0.58)',
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     padding: 16,
   },
   modalCard: {
+    alignSelf: 'center',
     borderRadius: 28,
     borderWidth: 1,
     gap: 18,
     maxHeight: '86%',
+    maxWidth: 560,
     padding: 22,
     position: 'relative',
-  },
-  dropOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    borderRadius: 28,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  dropOverlayText: {
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalAction: {
-    flex: 1,
+    width: '100%',
   },
 });

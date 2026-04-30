@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Snapshot</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <div class="title-row">
+        <span class="mark" aria-hidden="true"></span>
+        <h1>LinkedIn Snapshot</h1>
+      </div>
+      <div class="actions">
+        <button id="capture-company-button" class="capture-button primary" type="button">
+          Capture Company JSON
+        </button>
+        <button id="capture-person-button" class="capture-button secondary" type="button">
+          Capture Person JSON
+        </button>
+      </div>
+      <p id="status" role="status"></p>
+      <pre id="capture-output" hidden></pre>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

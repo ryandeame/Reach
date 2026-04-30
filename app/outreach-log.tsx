@@ -1,5 +1,5 @@
-import { NewNoirScreen } from '@/components/new-noir-screen';
+import { OutreachLogScreen } from '@/components/outreach-log-screen';
 
 export default function OutreachLogRoute() {
-  return <NewNoirScreen />;
+  return <OutreachLogScreen />;
 }

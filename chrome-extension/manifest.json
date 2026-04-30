@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Company Snapshot",
+  "description": "Capture company details from the current LinkedIn company page.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Capture LinkedIn company"
+  },
+  "permissions": ["activeTab", "downloads", "scripting"],
+  "host_permissions": ["https://www.linkedin.com/*"]
+}
