@@ -31,8 +31,48 @@ const getActiveTab = async () => {
   return tab;
 };
 
-const toDownloadFilename = (snapshotType) =>
-  `linkedin-${snapshotType}-snapshot-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+const reloadTabAndWait = (tabId) =>
+  new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(handleUpdated);
+      reject(new Error("Timed out while refreshing the LinkedIn page."));
+    }, 30000);
+
+    const handleUpdated = (updatedTabId, changeInfo) => {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") {
+        return;
+      }
+
+      window.clearTimeout(timeoutId);
+      chrome.tabs.onUpdated.removeListener(handleUpdated);
+      resolve();
+    };
+
+    chrome.tabs.onUpdated.addListener(handleUpdated);
+    chrome.tabs.reload(tabId);
+  });
+
+const toTimestamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+
+const toCamelFilenamePart = (value) => {
+  const words = String(value || "")
+    .trim()
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean);
+
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+};
+
+const toDownloadFilename = (snapshot, snapshotType) => {
+  if (snapshotType === "company") {
+    const companyName = toCamelFilenamePart(snapshot?.companyName) || "Company";
+    return `${companyName}-${toTimestamp()}.json`;
+  }
+
+  return `linkedin-${snapshotType}-snapshot-${toTimestamp()}.json`;
+};
 
 const downloadSnapshot = async (snapshot, snapshotType) => {
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
@@ -43,7 +83,7 @@ const downloadSnapshot = async (snapshot, snapshotType) => {
   try {
     await chrome.downloads.download({
       url,
-      filename: toDownloadFilename(snapshotType),
+      filename: toDownloadFilename(snapshot, snapshotType),
       saveAs: false,
     });
   } finally {
@@ -51,12 +91,7 @@ const downloadSnapshot = async (snapshot, snapshotType) => {
   }
 };
 
-function captureLinkedInCompanySnapshot() {
-  const COMPANY_NAME_SELECTORS = [
-    "h1.org-top-card-summary__title",
-    "h1.top-card-layout__title",
-  ];
-
+async function captureLinkedInCompanySnapshot() {
   const normalizeText = (value) =>
     (value || "")
       .replace(/\u00a0/g, " ")
@@ -68,34 +103,76 @@ function captureLinkedInCompanySnapshot() {
       Object.entries(value).filter(([, item]) => item != null && item !== ""),
     );
 
-  const getValueAfterLabel = (label) => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const getCompanyNameElement = () =>
+    document.querySelector("h1.org-top-card-summary__title") ||
+    document.querySelector("h1.top-card-layout__title");
+
+  const getCompanyName = () => normalizeText(getCompanyNameElement()?.innerText);
+
+  const getLabelElement = (label) => {
     const matches = [...document.querySelectorAll("*")].filter(
-      (element) => element.innerText?.trim() === label,
+      (element) => normalizeText(element.innerText) === label,
     );
 
-    const outermost = matches.find(
+    return matches.find(
       (element) =>
         !matches.some((other) => other !== element && other.contains(element)),
     );
+  };
 
-    if (!outermost?.parentElement) return "";
+  const hasAboutDetails = () =>
+    ["Website", "Headquarters", "Phone", "Industry", "Company size"].some(
+      (label) => Boolean(getLabelElement(label)),
+    );
 
-    const siblings = [...outermost.parentElement.children];
-    const nextElement = siblings[siblings.indexOf(outermost) + 1];
+  const waitForCompanyData = async () => {
+    const deadline = Date.now() + 15000;
+
+    while (Date.now() < deadline) {
+      if (getCompanyName() && hasAboutDetails()) {
+        return;
+      }
+
+      await sleep(250);
+    }
+
+    throw new Error("Timed out waiting for LinkedIn company data.");
+  };
+
+  const getValueAfterLabel = (label) => {
+    const labelElement = getLabelElement(label);
+
+    if (!labelElement?.parentElement) return "";
+
+    const termElement = labelElement.closest("dt");
+    const valueElement =
+      termElement?.nextElementSibling?.matches("dd")
+        ? termElement.nextElementSibling
+        : [...labelElement.parentElement.children][
+            [...labelElement.parentElement.children].indexOf(labelElement) + 1
+          ];
+
+    if (!valueElement) return "";
+
+    if (label === "Website") {
+      const websiteLink = valueElement.querySelector("a[href]");
+      return normalizeText(
+        websiteLink?.href ||
+          websiteLink?.innerText ||
+          valueElement.querySelector("span, dd")?.innerText ||
+          valueElement.innerText,
+      );
+    }
 
     return normalizeText(
-      nextElement?.querySelector("span")?.innerText ||
-        nextElement?.innerText ||
-        "",
+      valueElement.querySelector("span, dd")?.innerText ||
+        valueElement.innerText,
     );
   };
 
-  const getCompanyName = () =>
-    normalizeText(
-      COMPANY_NAME_SELECTORS.map((selector) =>
-        document.querySelector(selector),
-      ).find(Boolean)?.innerText,
-    );
+  await waitForCompanyData();
 
   return compactObject({
     sourceUrl: location.href,
@@ -187,9 +264,12 @@ function captureLinkedInPersonSnapshot() {
 
   const getTitle = () =>
     normalizeText(
-      document.querySelector(
+      [
+        "div:nth-of-type(1) > ul > li:nth-of-type(1) > div:nth-of-type(2) > a > div > p:nth-of-type(1)",
         "section > div > div:nth-of-type(2) > :nth-child(2) p:nth-of-type(1)",
-      )?.innerText,
+      ]
+        .map((selector) => document.querySelector(selector))
+        .find(Boolean)?.innerText,
     );
 
   const getEmail = () => {
@@ -236,7 +316,13 @@ function captureLinkedInPersonSnapshot() {
   });
 }
 
-const captureSnapshot = async ({ button, snapshotType, captureFunction }) => {
+const captureSnapshot = async ({
+  button,
+  snapshotType,
+  captureFunction,
+  reloadBeforeCapture = false,
+  world = "MAIN",
+}) => {
   setButtonsDisabled(true);
   setStatus("Capturing...");
 
@@ -247,9 +333,15 @@ const captureSnapshot = async ({ button, snapshotType, captureFunction }) => {
       throw new Error("Open a LinkedIn page first.");
     }
 
+    if (reloadBeforeCapture) {
+      setStatus("Refreshing...");
+      await reloadTabAndWait(tab.id);
+      setStatus("Capturing...");
+    }
+
     const [injectionResult] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      world: "MAIN",
+      world,
       func: captureFunction,
     });
 
@@ -277,6 +369,7 @@ companyCaptureButton.addEventListener("click", () => {
     button: companyCaptureButton,
     snapshotType: "company",
     captureFunction: captureLinkedInCompanySnapshot,
+    reloadBeforeCapture: true,
   });
 });
 

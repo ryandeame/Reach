@@ -11,6 +11,12 @@ const {
 } = require('victory/dist/victory.js');
 /* eslint-enable @typescript-eslint/no-require-imports */
 
+const Y_AXIS_STEP = 5;
+
+function roundUpToStep(value: number, step: number) {
+  return Math.max(step, Math.ceil(value / step) * step);
+}
+
 type OutreachActivityVictoryChartProps = {
   accentColor: string;
   ariaLabel?: string;
@@ -49,16 +55,27 @@ export function OutreachActivityVictoryChart({
   const hasSecondarySeries = Boolean(secondaryChartData?.length && secondaryAccentColor);
   const peak = Math.max(1, ...chartData.map((item) => item.value));
   const secondaryPeak = Math.max(1, ...(secondaryChartData ?? []).map((item) => item.value));
+  const primaryYMax = roundUpToStep(peak, Y_AXIS_STEP);
+  const secondaryYMax = roundUpToStep(secondaryPeak, Y_AXIS_STEP);
+  const yAxisIntervalCount = hasSecondarySeries
+    ? Math.max(1, secondaryYMax / Y_AXIS_STEP)
+    : Math.max(1, primaryYMax / Y_AXIS_STEP);
+  const primaryYTickValues = Array.from({ length: yAxisIntervalCount + 1 }, (_, index) =>
+    (primaryYMax / yAxisIntervalCount) * index,
+  );
+  const secondaryYTickValues = Array.from({ length: yAxisIntervalCount + 1 }, (_, index) =>
+    (secondaryYMax / yAxisIntervalCount) * index,
+  );
   const height = 240;
   const padding = { bottom: 36, left: 42, right: hasSecondarySeries ? 42 : 18, top: 18 };
   const width = 360;
   const domain = {
     x: [0.5, Math.max(1, chartData.length) + 0.5],
-    y: [0, Math.max(5, peak + 1)],
+    y: [0, primaryYMax],
   };
   const secondaryDomain = {
     ...domain,
-    y: [0, Math.max(5, secondaryPeak + 1)],
+    y: [0, secondaryYMax],
   };
   const tickValues = chartData.map((item) => item.day);
   const tickLabels = new Map(chartData.map((item) => [item.day, item.dayLabel]));
@@ -96,7 +113,7 @@ export function OutreachActivityVictoryChart({
         height={height}
         padding={padding}
         standalone={false}
-        tickCount={4}
+        tickValues={primaryYTickValues}
         width={width}
         style={{
           axis: { stroke: 'transparent' },
@@ -118,7 +135,7 @@ export function OutreachActivityVictoryChart({
           orientation="right"
           padding={padding}
           standalone={false}
-          tickCount={4}
+          tickValues={secondaryYTickValues}
           width={width}
           style={{
             axis: { stroke: 'transparent' },
